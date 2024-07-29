@@ -1,6 +1,6 @@
 --[[
 
-    dxo_pureraw_lib.lua - edit an image with DxO.PureRAW and import the result
+     dxo_pureraw - processes raw images in darktable with DxO_PureRAW 
 
     Copyright (C) 2024 Fiona Boston <fiona@fbphotography.uk>.
 
@@ -16,9 +16,10 @@
 
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
-]]
---[[
-    dxo_pureraw - processes raw images in darktable with DxO_PureRAW 
+
+    ================================================================
+
+    dxo_pureraw 
 
     This script adds a new panel to integrate DxO_PureRAW software into darktable
     to be able to pass or export a bunch of images to Zerene Stacker, reimport the result(s) and
