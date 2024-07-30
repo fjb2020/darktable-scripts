@@ -42,6 +42,8 @@
         new tags - tags to be added to the new processed image
 
     * Press "Process with DxO_pureRAW"
+    * If the image has already been processed by DxO and the output exists, DxO prompts either to overwrite or use a unique filename -
+      this script does not handle the unqiue filename option so the output will not automaticallt be imported back into Darktable
     * Process the images with DxO.PureRAW then save the results
     * Exit DxO_pureRAW
     * The resulting image(s) will be imported 
@@ -190,9 +192,9 @@ local function start_processing()
   save_preferences()
 
   -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  job = dt.gui.create_job( _"Running DxO_pureRAW...", true, stop_job )
+  local job = dt.gui.create_job( _"Running DxO_pureRAW...", true, stop_job )
 
-  images = dt.gui.selection() --get selected images
+  local images = dt.gui.selection() --get selected images
   if #images < 1 then --ensure enough images selected
     dt.print(_('not enough images selected, select at least 1 image to process'))
     return
@@ -200,33 +202,19 @@ local function start_processing()
 
   local img_table = {}
   local img_count = 0
-  img_list = ""
-  img_path = ""
-  this_dxo_image = ""
-  local all_tags = {}
-  local images_to_group = {}
-
+  local img_list = ""
+  local img_path = ""
+ 
     -- image list comprises raw file names of all images in selection
     -- also build list of expected images being exported by DXO Pureraw for later import
 
-    for i,raw_img in pairs(images) do
+  for i,raw_img in pairs(images) do
     -- appeand this raw image to string of images to be sent to DxO_PureRAW
     img_list = img_list .. '"' ..  raw_img.path  .. os_path_seperator .. raw_img.filename .. '" '
       
     img_count = img_count + 1
     table.insert(img_table,raw_img)
 
-
-    if dt.control.ending or not job.valid then
-      dt.print_log( _"exporting images canceled!")
-      return
-    end
-
-    -- update progress_bar
-    job.percent = i / #images
-
-    -- sleep for a short moment to give stop_job callback function a chance to run
-    dt.control.sleep(10)
   end
 
   -- stop job and remove progress_bar from ui, but only if not alreay canceled
@@ -237,21 +225,16 @@ local function start_processing()
   job = dt.gui.create_job( _"Running DxO PureRAW...", true, stop_job )
 
   local DxO_cmd = df.sanitize_filename( dt.preferences.read( mod, "DxO_pureRAWExe", "string" ) )
-  -- remove single quotes from folder name
-  -- DxO_cmd = string.gsub(DxO_cmd,"'","")
-  DxO_cmd = DxO_cmd .. " " .. img_list
 
+  DxO_cmd = DxO_cmd .. " " .. img_list
 
   dt.print_log( 'commandline: '..DxO_cmd )
 
-  dt.print_log( 'starting DxO_pureRAW' )
-  
   local dxo_start_time = os.date("*t",os.time())
-  dt.print_log("DxO Started " .. dxo_start_time.hour ..":" .. dxo_start_time.min .. ":" .. dxo_start_time.sec)
-  resp = dsys.external_command( DxO_cmd )
-  dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
-
+  dt.print_log( 'starting DxO_pureRAW at ' .. dxo_start_time.hour ..":" .. dxo_start_time.min .. ":" .. dxo_start_time.sec)
+  local resp = dsys.external_command( DxO_cmd )
   if resp ~= 0 then
+    dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
     dt.print( _'could not start DxO_pureRAW application - is it set correctly in Lua Options?' )
     if(job.valid) then
       job.valid = false
@@ -264,37 +247,31 @@ local function start_processing()
     job.valid = false
   end
 
-  -- Back from DXO    
-  -- import processed images
-  -- need to find images processed by dxo for import
-  -- We can't control DXO so don't know which files it will create - check for all possible files created by DXO
-  -- if they exist and were created between dxo_Start_Time and dxo_End_Time then they will be imported
   local dxo_extensions = {}
   dxo_extensions={"_DxO_DeepPRIMEXD.dng","_DxO_DeepPRIME.dng","_DxO_DeepPRIMEXD.tif","_DxO_DeepPRIME.tif","_DxO_DeepPRIMEXD.jpg","_DxO_DeepPRIME.jpg"}
  
   for ii,this_raw_img in pairs(img_table) do
       
     dt.print_log("Post processing " .. this_raw_img.filename)
-    
+
     -- test for existance of DXO images
-    img_type = string.sub(this_raw_img.filename,-3)
-    this_dxo_image_base = (df.chop_filetype(this_raw_img.path .. os_path_seperator .. this_raw_img.filename)) .. "-" .. img_type
+    local img_type = string.sub(this_raw_img.filename,-3)
+    local this_dxo_image_base = (df.chop_filetype(this_raw_img.path .. os_path_seperator .. this_raw_img.filename)) .. "-" .. img_type
     for jj = 1, 6 do
-      this_dxo_image = sanitize_filename(this_dxo_image_base .. dxo_extensions[jj])
-      -- does this file exist?
-      dt.print_log("Checking for " .. this_dxo_image)
+      local this_dxo_image = sanitize_filename(this_dxo_image_base .. dxo_extensions[jj])
       if df.check_if_file_exists(this_dxo_image) then
         dt.print_log("Found " ..  this_dxo_image)
         -- check modified time to decide wether to import
         if check_file_time(dxo_start_time,dxo_end_time,this_dxo_image) then
           -- import into darktable
-          -- need to cater for image already existing in db - if process is being re-run
+          
           local imported_image = dt.database.import(this_dxo_image)
+          -- images already in the database will have any sidecar files re-read 
           if imported_image == nil then
             dt.print_error("Failed to import " .. this_dxo_image)
           else
-            if GUI.optionwidgets.copy_tags == true then
-              -- copy tags except 'darktable' tags
+            if GUI.optionwidgets.copy_tags.value == true then
+             -- copy tags except 'darktable' tags
               local raw_tags = dt.tags.get_tags(this_raw_img)
               for _,this_tag in pairs(raw_tags) do
                 if not (string.sub(this_tag.name,1,9) == "darktable") then
@@ -331,7 +308,7 @@ local function start_processing()
     end
    end
 
-    --dt.database.import(img_path)
+
 
 end
 
