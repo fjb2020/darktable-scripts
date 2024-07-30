@@ -43,7 +43,8 @@
 
     * Press "Process with DxO_pureRAW"
     * If the image has already been processed by DxO and the output exists, DxO prompts either to overwrite or use a unique filename -
-      this script does not handle the unqiue filename option so the output will not automaticallt be imported back into Darktable
+      this script does not handle the unqiue filename option so the output will not automatically be imported back into Darktable
+
     * Process the images with DxO.PureRAW then save the results
     * Exit DxO_pureRAW
     * The resulting image(s) will be imported 
