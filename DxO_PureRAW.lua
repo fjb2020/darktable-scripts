@@ -66,18 +66,6 @@ local df = require 'lib/dtutils.file'
 local log = require "lib/dtutils.log"
 local dsys = require 'lib/dtutils.system'
 
--- lua libraries installed via luarocks https://github.com/luarocks/luarocks/wiki
--- luafilesystem - https://lunarmodules.github.io/luafilesystem/index.html - file system functions
--- additional validation and output checking is activated if lfs is present
-local lfs_loaded,lfs = pcall(require,'lfs')
-if lfs_loaded == false then
-  dt.print_log("No lfs module")
-else
-  dt.print_log("lfs module found")
-end
-
-
--- local lxp = require 'lxp' -- https://lunarmodules.github.io/luaexpat/index.html - XML Expat parsing
 
 du.check_min_api_version("7.0.0", "DxO_pureRAW")
 
@@ -159,11 +147,6 @@ local function clean_spaces(text)
   text = string.gsub(text,'%s*$','')
   return text
 end
-
-local function check_file_time(low_time,high_time,filepath)
-  return true
-end
-
 
 local function save_preferences()
   dt.preferences.write( mod, 'group', 'bool', GUI.optionwidgets.group.value )
@@ -261,48 +244,44 @@ local function start_processing()
       local this_dxo_image = sanitize_filename(this_dxo_image_base .. dxo_extensions[jj])
       if df.check_if_file_exists(this_dxo_image) then
         dt.print_log("Found " ..  this_dxo_image)
-        -- check modified time to decide wether to import
-        if check_file_time(dxo_start_time,dxo_end_time,this_dxo_image) then
-          -- import into darktable
-          
-          local imported_image = dt.database.import(this_dxo_image)
-          -- images already in the database will have any sidecar files re-read 
-          if imported_image == nil then
-            dt.print_error("Failed to import " .. this_dxo_image)
-          else
-            if GUI.optionwidgets.copy_tags.value == true then
-             -- copy tags except 'darktable' tags
-              local raw_tags = dt.tags.get_tags(this_raw_img)
-              for _,this_tag in pairs(raw_tags) do
-                if not (string.sub(this_tag.name,1,9) == "darktable") then
-                  dt.tags.attach(this_tag,imported_image)
-                end
+        local imported_image = dt.database.import(this_dxo_image)
+        -- images already in the database will have any sidecar files re-read 
+        if imported_image == nil then
+          dt.print_error("Failed to import " .. this_dxo_image)
+        else
+          if GUI.optionwidgets.copy_tags.value == true then
+           -- copy tags except 'darktable' tags
+            local raw_tags = dt.tags.get_tags(this_raw_img)
+            for _,this_tag in pairs(raw_tags) do
+              if not (string.sub(this_tag.name,1,9) == "darktable") then
+                dt.tags.attach(this_tag,imported_image)
               end
-            end
-            -- add extra tag
-            local set_tag = GUI.optionwidgets.add_tags.text
-            if set_tag ~= nil then -- add additional user-specified tags
-              for tag in string.gmatch(set_tag, '[^,]+') do
-                tag = clean_spaces(tag)
-                tag = dt.tags.create(tag)
-                dt.tags.attach(tag, imported_image)
-              end
-            end
-           
-            if GUI.optionwidgets.copy_metadata.value == true then
-              -- metadata - title, desc, creator, rights
-              imported_image.title = this_raw_img.title
-              imported_image.description = this_raw_img.description
-              imported_image.creator = this_raw_img.creator
-              imported_image.rights = this_raw_img.rights
-            end
-
-            if GUI.optionwidgets.group.value == true then
-              -- group if requested and make leader
-              imported_image:group_with(this_raw_img)
-              imported_image:make_group_leader()
             end
           end
+          -- add extra tag
+          local set_tag = GUI.optionwidgets.add_tags.text
+          if set_tag ~= nil then -- add additional user-specified tags
+            for tag in string.gmatch(set_tag, '[^,]+') do
+              tag = clean_spaces(tag)
+              tag = dt.tags.create(tag)
+              dt.tags.attach(tag, imported_image)
+            end
+          end
+           
+          if GUI.optionwidgets.copy_metadata.value == true then
+            -- metadata - title, desc, creator, rights
+            imported_image.title = this_raw_img.title
+            imported_image.description = this_raw_img.description
+            imported_image.creator = this_raw_img.creator
+            imported_image.rights = this_raw_img.rights
+          end
+
+          if GUI.optionwidgets.group.value == true then
+            -- group if requested and make leader
+            imported_image:group_with(this_raw_img)
+            imported_image:make_group_leader()
+          end
+          
         end
       end
     end
