@@ -368,7 +368,7 @@ GUI.run = dt.new_widget('button'){
 }
 
 
--- Preferences - locate Zerene App and staging folder used for image export and script
+-- Preferences - locate DxO_PureRAW executable
 dt.preferences.register(
   mod, -- script
   "DxO_pureRAWExe",	-- name
