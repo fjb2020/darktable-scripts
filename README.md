@@ -72,7 +72,7 @@ More details can be found here https://zerenesystems.com/cms/stacker/docs/batcha
 
 This lua script assumes that the batch script file is named ZereneBatch.xml and is located in the Stacker Staging Folder.
 A sample batch script is included on the web page above which performs simple stacking tasks suitable for this script. Copy this XML
-into a new file and save as ZereneBatch.xml in the Staging Folder. Important note that the default output filename pattern of "ZS-OutputImage ZS {method}" should not be altered. This xmnl should be the only file in the folder (the script may not run if other
+into a new file and save as ZereneBatch.xml in the Staging Folder. Important note that the default output filename pattern of "ZS-OutputImage ZS {method}" should not be altered. This xml should be the only file in the folder (the script may not run if other
 files are present). 
 
 Details of how to make more sophisticated batch scipts are on the Zerene web site, and the Zerene Stacker application
@@ -85,8 +85,6 @@ Complete the details in darktable global options -> Lua Options:
 - Zerene Stacker Java Folder - try
   - macOS : /Applications/ZereneStacker.app/Contents/Resources/Java
   - Windows: C:\Program Files\ZereneStacker
-  - Linux
-
 
 Select two or more images
 Expand the zerene stacker panel
