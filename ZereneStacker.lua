@@ -43,7 +43,18 @@ files are present). Details of how to make more sophisticated batch scipts are o
 can be used to create very complex scripts that can be used instead of the above. 
 
 USAGE
-* Choose the executable of the Zerene Stacker software in the preferences / Lua options / Zerene Stacker executable
+* First run only
+
+  * Set the following parameters in Lua options:
+  *   Stacker Staging Folder = folder created in above step
+  *   Zerene Licence Folder = folder where LicenceKey.txt is stored 
+          (e.g. /Users/myusername/Library/Preferences/ZereneStacker on a Mac
+                c:\Program Files\ZereneStacker on Windows)
+  *   Zerene Stacker Java Folder = folder where Zerene .jar files are held  
+          (e.g. /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac
+                c:\Program Files\ZereneStacker on Windows)
+
+
 * Select two or more images
 * Expand the zerene stacker panel
 * * 'group': If checked, the selected source images and the imported results are grouped together and the first result image
@@ -258,7 +269,7 @@ local function start_stacking()
   save_preferences()
 
   -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  job = dt.gui.create_job( _"exporting images...", true, stop_job )
+  job = dt.gui.create_job( _"exporting images to Zerene Stacker...", true, stop_job )
 
   images = dt.gui.selection() --get selected images
   if #images < 2 then --ensure enough images selected
@@ -370,8 +381,6 @@ local function start_stacking()
 
 
 
-  -- build zerene command line (see Zenere Natch API details at https://zerenesystems.com/cms/stacker/docs/batchapi)
-
   local zerene_java_folder = df.sanitize_filename( dt.preferences.read( mod, "ZereneJavaFolder", "string" ) )
   -- remove single quotes from folder name
   zerene_java_folder = string.gsub(zerene_java_folder,"'","")
@@ -467,8 +476,16 @@ local function start_stacking()
     end
   else
     -- no lfs - look for specific filenames - will fail to find immages not using default output filename "ZS-OutputImage ZS {method}.tif"
-    local zs_base = "ZS-OutputImage ZS "
-    local zs_extensions={"PMax.tif","DMap.tif","retouched.tif"}
+    local zs_base = "ZS-OutputImage"
+    local zs_extensions={" ZS PMax.tif"," ZS DMap.tif"," ZS retouched.tif"}
+    -- look for base with no extension
+    local this_zs_image = zs_base .. ".tif"
+    -- does this file exist?
+    dt.print_log("Checking for " .. this_zs_image)
+    if df.check_if_file_exists(stagingfolder .. os_path_seperator .. this_zs_image) then
+      table.insert(stackedimages,this_zs_image)
+    end
+    -- now look for the full names including extensions
     for jj = 1, 3 do
       local this_zs_image = zs_base .. zs_extensions[jj]
       -- does this file exist?
