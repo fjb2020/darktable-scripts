@@ -81,7 +81,9 @@ can be used to create very complex scripts that can be used instead of the above
 #### USAGE
 Complete the details in darktable global options -> Lua Options:
 - Stacker Staging Folder - folder created as above
-- Zerene Licence Folder - the folder holding the Zerene Stacker licence file
+- Zerene Licence Folder - the folder holding the Zerene Stacker licence file - try
+  - macOS : /Users/myusername/Library/Preferences/ZereneStacker
+  - Windows : C:\Program Files\ZereneStacker
 - Zerene Stacker Java Folder - try
   - macOS : /Applications/ZereneStacker.app/Contents/Resources/Java
   - Windows: C:\Program Files\ZereneStacker
