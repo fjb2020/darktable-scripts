@@ -43,15 +43,15 @@ files are present). Details of how to make more sophisticated batch scipts are o
 can be used to create very complex scripts that can be used instead of the above. 
 
 USAGE
-* First run only
+* Complete the details in darktable global options -> Lua Options:
 
   * Set the following parameters in Lua options:
-  *   Stacker Staging Folder = folder created in above step
-  *   Zerene Licence Folder = folder where LicenceKey.txt is stored 
-          (e.g. /Users/myusername/Library/Preferences/ZereneStacker on a Mac
+  *   Stacker Staging Folder - folder created in above step
+  *   Zerene Licence Folder - folder where LicenceKey.txt is stored 
+          (try  /Users/myusername/Library/Preferences/ZereneStacker on a Mac
                 c:\Program Files\ZereneStacker on Windows)
   *   Zerene Stacker Java Folder = folder where Zerene .jar files are held  
-          (e.g. /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac
+          (try  /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac
                 c:\Program Files\ZereneStacker on Windows)
 
 
@@ -104,6 +104,7 @@ else
   dt.print_log("lfs module found")
 end
 
+
 -- luaexpat - https://lunarmodules.github.io/luaexpat/index.html - XML Expat parsing
 -- not currently used but future enhancement around chcking ZereneBatch.xml may require it
 local xml_loaded,lxp = pcall(require,'lxp')
@@ -148,7 +149,7 @@ if scriptfile ~= nil and scriptfile.source ~= nil then
   local path = scriptfile.source:match( "[^@].*[/\\]" )
   localedir = path..os_path_seperator..'locale'
 end
-dt.print_log( "localedir: "..localedir )
+
 
 -- Tell gettext where to find the .mo file translating messages for a particular domain
 local gettext = dt.gettext
@@ -281,6 +282,7 @@ local function start_stacking()
   end
 
   local firstimagepath = '' -- this will be path that stacked images get moved to prior to import
+  local firstimagebase = '' -- basename of first image for naming of output files
   local meta_data = { -- storage for metadata to apply to stacked images
     title = '',
     description = '',
@@ -291,14 +293,16 @@ local function start_stacking()
   local exported_images_table = {} -- table of exported images
   local all_tags = {} -- table of all tags from source images
   local images_to_group = {} -- table of images to be grouped with first images
-  local img_count = 0
+  local img_count = #images -- number of source images
   local ZereneBatchFound = false
   local stagingfolder = df.sanitize_filename( dt.preferences.read( mod, "StackerStagingFolder", "string" ) )
    -- remove single quotes from folder name
   stagingfolder = string.gsub(stagingfolder,"'","")
 
   -- check staging folder is empty other than ZereneBatch.xml - depends on lfsfilesystem which may not be available
+  
   if lfs_loaded then
+    
     local staging_clear = true
     for this_file in lfs.dir(stagingfolder) do
       if this_file ~= "." and this_file ~= ".." then
@@ -353,6 +357,7 @@ local function start_stacking()
       dt.print_log( 'sanitized = '..df.sanitize_filename( image.path ) )
       firstimagepath = df.sanitize_filename( image.path )
       firstimagepath = string.gsub(firstimagepath,"'","")
+      firstimagebase= df.get_basename(image.filename)
       meta_data.title = image.title
       meta_data.description = image.description
       meta_data.creator = image.creator
@@ -393,12 +398,9 @@ local function start_stacking()
   -- remove single quotes from folder name
   zerene_staging_fldr =  string.gsub(zerene_staging_fldr,"'","")
 
-  -- MacOs - zerene .app is a folder with java runtime in a subfolder
-
   -- todo - expand to support linux 
 
   -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi
-
   
   if dt.configuration.running_os == 'macos' then
     zerene_commandline = zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
@@ -497,9 +499,21 @@ local function start_stacking()
   end
   -- process all images in stackedimages table
   for _,this_file in pairs(stackedimages) do
+
+    -- rename stacked image to reflect source images
+    local full_filename = stagingfolder .. os_path_seperator .. this_file
+    local new_filename = stagingfolder ..os_path_seperator .. firstimagebase .. '-' .. img_count .. '-ZS.' .. df.get_filetype(this_file)
+    dt.print_log('Renaming ' ..  full_filename .. ' to ' .. new_filename)
+    if not df.file_move(full_filename,new_filename) then
+      dt.print_log("Unable to rename " .. full_filename .. " to " .. new_filename .. " please check manually")
+      break
+    end
+    this_file = df.get_filename(new_filename)
+    full_filename = new_filename
+
+    -- now move renamed file from staging folder and import to DT
     -- use df.create_unique_file in case stacked filename already exists in source folder
     local target_filename = df.create_unique_filename( firstimagepath .. os_path_seperator .. this_file)
-    local full_filename = stagingfolder .. os_path_seperator .. this_file
     dt.print_log('Source is ' .. this_file .. ' target is ' .. target_filename)
     if target_filename ~= "" then
       -- move stacked image to source folder and import
@@ -509,40 +523,38 @@ local function start_stacking()
         if imported_image == nil then
           dt.print_log("Unable to import  " .. target_filename)
           dt.print(_("Unable to move " .. this_file .. " to " .. firstimagepath .. " please check manually"))
-        else
-
-          -- group
-          -- first group all source images
-          if GUI.optionwidgets.group.value == true then
-            for _,imagetogroup in pairs( images_to_group ) do
-              imagetogroup:group_with( source_img_table[ 1 ] )
-            end
+          break
+        end
+       
+        -- group
+        -- first group all source images
+        if GUI.optionwidgets.group.value == true then
+          for _,imagetogroup in pairs( images_to_group ) do
+            imagetogroup:group_with( source_img_table[ 1 ] )
+          end
           -- now add stacked image to group and make it leader
-            imported_image:group_with(source_img_table[1])
-            imported_image:make_group_leader()
-          end
-
-          -- tags
-          if GUI.optionwidgets.copy_tags.value == true then
-            insert_tags(imported_image,all_tags)
-          end
-          add_additional_tags(imported_image)
-
-          -- metadata
-          if GUI.optionwidgets.copy_metadata.value == true then
-            imported_image.title = meta_data.title
-            imported_image.description = meta_data.description
-            imported_image.creator = meta_data.creator
-            imported_image.rights = meta_data.rights
-           end
-          end
+          imported_image:group_with(source_img_table[1])
+          imported_image:make_group_leader()
+        end
+        -- tags
+        if GUI.optionwidgets.copy_tags.value == true then
+          insert_tags(imported_image,all_tags)
+        end
+        add_additional_tags(imported_image)
+        -- metadata
+        if GUI.optionwidgets.copy_metadata.value == true then
+          imported_image.title = meta_data.title
+          imported_image.description = meta_data.description
+          imported_image.creator = meta_data.creator
+          imported_image.rights = meta_data.rights
         end
       else
         -- create_unique_filename may fail if 100 other files with same basename exist, also pernissions may cause move to fail
         dt.print_log("Unable to move " .. this_file .. " to " .. firstimagepath .. " please check manually")
         dt.print(_("Unable to import  " .. target_filename))
       end
-  end      
+    end     
+  end
 end
 
 
