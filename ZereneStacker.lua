@@ -139,8 +139,13 @@ local GUI = { --GUI Elements Table
 }
 
 local mod = 'module_ZereneStacker'
+
 local os_path_seperator = '/'
-if dt.configuration.running_os == 'windows' then os_path_seperator = '\\' end
+local os_quote = "'"
+if dt.configuration.running_os == 'windows' then 
+  os_path_seperator = '\\'
+  os_quote = '"'
+end
 
 -- find locale directory:
 local scriptfile = debug.getinfo( 1, "S" )
@@ -431,7 +436,7 @@ local function start_stacking()
                                           .. ' -noSplashScreen' -- disable splash screen
                                           .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
 -- Add staging folder
-  zerene_commandline = '"' .. zerene_commandline .. ' ' ..  zerene_staging_fldr
+  zerene_commandline = '"' .. zerene_commandline .. ' ' ..  os_quote ..  zerene_staging_fldr .. os_quote
 
 -- run Zerene Stacker
 
@@ -499,7 +504,6 @@ local function start_stacking()
   end
   -- process all images in stackedimages table
   for _,this_file in pairs(stackedimages) do
-
     -- rename stacked image to reflect source images
     local full_filename = stagingfolder .. os_path_seperator .. this_file
     local new_filename = stagingfolder ..os_path_seperator .. firstimagebase .. '-' .. img_count .. '-ZS.' .. df.get_filetype(this_file)
