@@ -180,7 +180,7 @@ local function export_image( image, exportfilename)
 
   local curr_image = image.path..os_path_seperator..image.filename
 
-  dt.print_log( "exporting "..curr_image )
+  dt.print_log( "exporting " .. curr_image .. ' to ' .. exportfilename)
 
   local exporter = dt.new_format("tiff")
   exporter.bpp = 16
@@ -274,10 +274,14 @@ local function start_stacking()
 
   save_preferences()
 
-  -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  job = dt.gui.create_job( _"exporting images to Zerene Stacker...", true, stop_job )
-
   images = dt.gui.selection() --get selected images
+
+  -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
+  local jobdesc = _"exporting " .. #images .. " images to Zerene Stacker..."
+  dt.print_log ('jobdesc is ' .. jobdesc)
+  job = dt.gui.create_job( jobdesc, true, stop_job )
+
+  
   if #images < 2 then --ensure enough images selected
     dt.print(_('not enough images selected, select at least 2 images to stack'))
     if(job.valid) then
@@ -301,9 +305,9 @@ local function start_stacking()
   local img_count = #images -- number of source images
   local ZereneBatchFound = false
   local stagingfolder = df.sanitize_filename( dt.preferences.read( mod, "StackerStagingFolder", "string" ) )
-   -- remove single quotes from folder name
+   -- remove single & double quotes from folder name
   stagingfolder = string.gsub(stagingfolder,"'","")
-
+  stagingfolder = string.gsub(stagingfolder,'"','')
   -- check staging folder is empty other than ZereneBatch.xml - depends on lfsfilesystem which may not be available
   
   if lfs_loaded then
@@ -408,7 +412,7 @@ local function start_stacking()
   -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi
   
   if dt.configuration.running_os == 'macos' then
-    zerene_commandline = zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+    zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
       -- .. ' -Xmx16384m' -- specifies the amount of memory that can be used by the Java heap.
       .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
       .. ' -Xdock:name="ZereneStacker" -Xdock:icon="' .. zerene_java_folder .. '/../ZereneEurydice.icns"' .. ' -Dapple.laf.useScreenMenuBar=true' -- Settings to integrate in to apple dock etc                            
@@ -420,10 +424,12 @@ local function start_stacking()
       .. zerene_java_folder .. os_path_seperator .. 'jai_imageio.jar:'
       .. zerene_java_folder .. os_path_seperator .. 'jdk10hooks.jar"'
   end
-    
+
   if dt.configuration.running_os == 'windows' then
+
     zerene_java_folder = zerene_java_folder:gsub('"','') -- remove enclosing quotes
-    zerene_commandline = zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+
+    zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'javaw.exe"' -- java runtime packaged with zerene
       -- .. ' -Xmx16384m' -- specifies the amount of memory that can be used by the Java heap.
       .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
       .. ' -DjavaBits=64bitJava'
@@ -435,9 +441,14 @@ local function start_stacking()
   zerene_commandline = zerene_commandline .. ' com.zerenesystems.stacker.gui.MainFrame'
                                           .. ' -noSplashScreen' -- disable splash screen
                                           .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
--- Add staging folder
-  zerene_commandline = '"' .. zerene_commandline .. ' ' ..  os_quote ..  zerene_staging_fldr .. os_quote
 
+
+-- Add staging folder
+  if dt.configuration.running_os == 'windows' then
+    zerene_commandline = zerene_commandline .. ' ' ..  zerene_staging_fldr 
+  else
+    zerene_commandline = zerene_commandline .. ' ' ..  os_quote ..  zerene_staging_fldr .. os_quote
+  end
 -- run Zerene Stacker
 
   job = dt.gui.create_job( _"Running Zerene Stacker...", true, stop_job )
@@ -445,8 +456,12 @@ local function start_stacking()
   local zerene_start_time = os.date("*t",os.time())
   dt.print_log("Zerene Started " .. zerene_start_time.hour ..":" .. zerene_start_time.min .. ":" .. zerene_start_time.sec)
 
-  resp = dsys.external_command( zerene_commandline )
-  
+  if dt.configuration.running_os == 'windows' then 
+    resp = dsys.windows_command( zerene_commandline)
+  else
+    resp = dsys.external_command( zerene_commandline )
+  end
+
   dt.print_log( 'zerene returned '..tostring( resp ) )
   if resp ~= 0 then
     dt.print( _'could not start ZereneStacker application' )
