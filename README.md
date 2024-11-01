@@ -84,15 +84,12 @@ Complete the details in darktable global options -> Lua Options:
   *   Stacker Staging Folder - folder created in above step
   *   Zerene Licence Folder - folder where LicenceKey.txt is stored 
           (try  /Users/myusername/Library/Preferences/ZereneStacker on a Mac,
-
                 c:\Program Files\ZereneStacker on Windows,
-
                 /home/myusername/.ZereneStacker on Linux)
+                
   *   Zerene Stacker Java Folder = folder where ZereneStacker.jar file is held  
           (try  /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac,
-
-                c:\Program Files\ZereneStacker on Windows,
-          
+                c:\Program Files\ZereneStacker on Windows,          
                 top level directory of Zerene installation location on linux)
 
 Select two or more images
