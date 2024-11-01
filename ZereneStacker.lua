@@ -260,7 +260,7 @@ end
 
 
 -- **************************
-local function build_zerene_commandline()
+local function build_zerene_commandline(zerene_staging_fldr)
   local zerene_commandline = ''
 
   local zerene_java_folder = df.sanitize_filename( dt.preferences.read( mod, "ZereneJavaFolder", "string" ) )
@@ -270,10 +270,6 @@ local function build_zerene_commandline()
   local zerene_licfldr = df.sanitize_filename(dt.preferences.read( mod, "ZereneLicFolder", "string" ) )
   -- remove single quotes from folder name
   zerene_licfolder =  string.gsub(zerene_licfldr,"'","")
-
-  local zerene_staging_fldr = df.sanitize_filename(dt.preferences.read( mod, "StackerStagingFolder", "string" ) )
-  -- remove single quotes from folder name
-  zerene_staging_fldr =  string.gsub(zerene_staging_fldr,"'","")
 
   -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi 
 
@@ -288,6 +284,7 @@ local function build_zerene_commandline()
       .. zerene_java_folder .. os_path_seperator .. 'metadata-extractor-2.4.0-beta-1.jar:'
       .. zerene_java_folder .. os_path_seperator .. 'jai_imageio.jar:'
       .. zerene_java_folder .. os_path_seperator .. 'jdk10hooks.jar"'
+
   end
 
   if dt.configuration.running_os == 'windows' then
@@ -297,6 +294,7 @@ local function build_zerene_commandline()
       .. ' -DjavaBits=64bitJava'
       .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar;' -- tell the JRE where to find the Zerene Stacker application and libraries
       .. zerene_java_folder .. os_path_seperator .. 'JREextensions' .. os_path_seperator .. '*"'
+
   end
 
   if dt.configuration.running_os == 'linux' then
@@ -305,9 +303,10 @@ local function build_zerene_commandline()
       .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
       .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
       .. zerene_java_folder .. os_path_seperator .. '/JREextensions/*"'
+
   end
 
-  -- Common options to modify how zerene runs                                         
+  -- options to modify how zerene runs                                         
   zerene_commandline = zerene_commandline .. ' com.zerenesystems.stacker.gui.MainFrame'
   .. ' -noSplashScreen' -- disable splash screen
   .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
@@ -441,7 +440,7 @@ local function start_stacking()
   stop_job(job)
 
   -- get os dependent command line to run Zerene Stacker
-  local zerene_commandline = build_zerene_commandline()
+  local zerene_commandline = build_zerene_commandline(stagingfolder)
 
  -- run Zerene Stacker
   job = dt.gui.create_job( _"Running Zerene Stacker...", true, stop_job )
