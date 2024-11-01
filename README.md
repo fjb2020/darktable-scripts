@@ -80,13 +80,16 @@ can be used to create very complex scripts that can be used instead of the above
 
 #### USAGE
 Complete the details in darktable global options -> Lua Options:
-- Stacker Staging Folder - folder created as above
-- Zerene Licence Folder - the folder holding the Zerene Stacker licence file - try
-  - macOS : /Users/myusername/Library/Preferences/ZereneStacker
-  - Windows : C:\Program Files\ZereneStacker
-- Zerene Stacker Java Folder - try
-  - macOS : /Applications/ZereneStacker.app/Contents/Resources/Java
-  - Windows: C:\Program Files\ZereneStacker
+  * Set the following parameters in Lua options:
+  *   Stacker Staging Folder - folder created in above step
+  *   Zerene Licence Folder - folder where LicenceKey.txt is stored 
+          (try  /Users/myusername/Library/Preferences/ZereneStacker on a Mac
+                c:\Program Files\ZereneStacker on Windows
+                /home/myusername/.ZereneStacker on Linux)
+  *   Zerene Stacker Java Folder = folder where ZereneStacker.jar file is held  
+          (try  /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac
+                c:\Program Files\ZereneStacker on Windows
+                top level directory of Zerene installation location on linux)
 
 Select two or more images
 Expand the zerene stacker panel
@@ -113,6 +116,7 @@ If it is not available the script will still work but will fail to import the st
 This script was tested using using the following platforms:
 - macOS Sonoma 14.5 on Apple Silcon
 - Windows 11 ARM running in a VM on Apple Silicon
+- Linux - Ubuntu LXQt 24.01.1 LTS running on amd64 
 
 - darktable 4.8.0 and 4.8.1
 - Zerene Stacker Version 1.04 Build T2023-06-11-1120
