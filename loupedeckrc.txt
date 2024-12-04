@@ -1,0 +1,200 @@
+midi:B6=views/darkroom/undo
+midi:C7=views/darkroom/redo
+
+midi:F#8=global/modifiers;shift
+midi:G8=global/modifiers;ctrl
+midi:G#8=global/modifiers;alt
+
+midi:A#4;shift=views/thumbtable/rating;five
+midi:A#4=views/thumbtable/color label;purple
+midi:A4;shift=views/thumbtable/rating;four
+midi:A4=views/thumbtable/color label;blue
+midi:F#4;shift=views/thumbtable/rating;one
+midi:F#4=views/thumbtable/color label;red
+midi:G#4;shift=views/thumbtable/rating;three
+midi:G#4=views/thumbtable/color label;green
+midi:G4;shift=views/thumbtable/rating;two
+midi:G4=views/thumbtable/color label;yellow
+
+midi:G#6;shift=lib/copy_history/selective copy
+midi:G#6=lib/copy_history/copy
+midi:G#6;ctrl=lib/image/duplicate
+midi:A6;shift=lib/copy_history/selective paste
+midi:A6=lib/copy_history/paste
+midi:D8=global/switch views/darkroom
+
+midi:C#3;midi:CC48=iop/ashift/lens shift (vertical)
+midi:C3=iop/ashift;reset;ctrl-activate
+midi:D3;midi:CC48=iop/ashift/lens shift (horizontal)
+None;midi:CC48=iop/ashift/rotation;*-1
+None;midi:CC48=views/lighttable/zoom out
+none;shift;midi:CC48=views/lighttable/zoom in
+
+midi:A8=global/grouping
+midi:F7=iop/toneequal/page;advanced
+midi:D7=iop/colorzones/channel;hue
+midi:D#7=iop/colorzones/channel;chroma
+midi:E7=iop/colorzones/channel;lightness
+
+midi:D7;shift=iop/colorequal/page;hue
+midi:D#7;shift=iop/colorequal/page;saturation
+midi:E7;shift=iop/colorequal/page;brightness
+
+none;midi:CC1=iop/colorzones/graph;red
+none;midi:CC2=iop/colorzones/graph;orange
+none;midi:CC3=iop/colorzones/graph;yellow
+none;midi:CC4=iop/colorzones/graph;green
+none;midi:CC5=iop/colorzones/graph;aqua
+none;midi:CC6=iop/colorzones/graph;blue
+none;midi:CC7=iop/colorzones/graph;purple
+none;midi:CC8=iop/colorzones/graph;magenta
+
+none;midi:CC9=iop/colorzones/graph;red
+none;midi:CC10=iop/colorzones/graph;orange
+none;midi:CC11=iop/colorzones/graph;yellow
+none;midi:CC12=iop/colorzones/graph;green
+none;midi:CC13=iop/colorzones/graph;aqua
+none;midi:CC14=iop/colorzones/graph;blue
+none;midi:CC15=iop/colorzones/graph;purple
+none;midi:CC16=iop/colorzones/graph;magenta
+
+none;midi:CC17=iop/colorzones/graph;red
+none;midi:CC18=iop/colorzones/graph;orange
+none;midi:CC19=iop/colorzones/graph;yellow
+none;midi:CC20=iop/colorzones/graph;green
+none;midi:CC21=iop/colorzones/graph;aqua
+none;midi:CC22=iop/colorzones/graph;blue
+none;midi:CC23=iop/colorzones/graph;purple
+none;midi:CC24=iop/colorzones/graph;magenta
+
+none;midi:CC25=iop/toneequal/simple/-7 EV
+none;midi:CC26=iop/toneequal/simple/-6 EV
+none;midi:CC27=iop/toneequal/simple/-5 EV
+none;midi:CC28=iop/toneequal/simple/-4 EV
+none;midi:CC29=iop/toneequal/simple/-3 EV
+none;midi:CC30=iop/toneequal/simple/-2 EV
+none;midi:CC31=iop/toneequal/simple/-1 EV
+none;midi:CC32=iop/toneequal/simple/+0 EV
+
+None;shift;midi:CC1=iop/colorequal/graph;red
+None;shift;midi:CC2=iop/colorequal/graph;orange
+None;shift;midi:CC3=iop/colorequal/graph;yellow
+None;shift;midi:CC4=iop/colorequal/graph;green
+None;shift;midi:CC5=iop/colorequal/graph;cyan
+None;shift;midi:CC6=iop/colorequal/graph;blue
+None;shift;midi:CC7=iop/colorequal/graph;lavender
+None;shift;midi:CC8=iop/colorequal/graph;magenta
+
+None;shift;midi:CC9=op/colorequal/graph;red
+None;shift;midi:CC10=iop/colorequal/graph;orange
+None;shift;midi:CC11=iop/colorequal/graph;yellow
+None;shift;midi:CC12=iop/colorequal/graph;green
+None;shift;midi:CC13=iop/colorequal/graph;cyan
+None;shift;midi:CC14=iop/colorequal/graph;blue
+None;shift;midi:CC15=iop/colorequal/graph;lavender
+None;shift;midi:CC16=iop/colorequal/graph;magenta
+
+None;shift;midi:CC17=iop/colorequal/graph;red
+None;shift;midi:CC18=iop/colorequal/graph;orange
+None;shift;midi:CC19=iop/colorequal/graph;yellow
+None;shift;midi:CC20=iop/colorequal/graph;green
+None;shift;midi:CC21=iop/colorequal/graph;cyan
+None;shift;midi:CC22=iop/colorequal/graph;blue
+None;shift;midi:CC23=iop/colorequal/graph;lavender
+None;shift;midi:CC24=iop/colorequal/graph;magenta
+
+None;midi:CC41=iop/hazeremoval/strength
+none;shift;midi:CC41=iop/hazeremoval/distance
+
+midi:C#3;midi:CC41=iop/soften/size
+midi:D3;midi:CC41=iop/soften/saturation
+midi:D#3;midi:CC41=iop/soften/brightness
+midi:E3;midi:CC41=iop/soften/mix
+
+none;midi:CC42=iop/diffuse/1st order speed
+midi:C#3;midi:CC42=iop/diffuse/2nd order speed
+midi:D3;midi:CC42=iop/diffuse/3rd order speed
+midi:D#3;midi:CC42=iop/diffuse/4th order speed
+midi:E3;midi:CC42=iop/diffuse/sharpness
+midi:F3;midi:CC42=iop/diffuse/edge sensitivity
+midi:F#3;midi:CC42=iop/diffuse/edge threshold
+none;shift;midi:CC42=iop/diffuse/iterations
+none;ctrl;midi:CC42=iop/diffuse/central radius
+none;option;midi:CC42=iop/diffuse/radius span
+
+
+midi:A#2=iop/colorbalancergb/contrast;reset
+None;midi:CC46=iop/colorbalancergb/contrast
+midi:C#3;midi:CC46=iop/colorcontrast/green-magenta contrast
+midi:D3;midi:CC46=iop/colorcontrast/blue-yellow contrast
+
+None;midi:CC45=iop/bilat/detail
+
+midi:C#3;midi:CC45=iop/bilat/shadows
+midi:D3;midi:CC45=iop/bilat/midtone range
+midi:D#3;midi:CC45=iop/bilat/highlights
+
+None;midi:CC33=iop/exposure/exposure
+
+
+none;midi:CC44=iop/colorbalancergb/brilliance/shadows
+
+
+none;midi:CC40=iop/colorbalancergb/brilliance/highlights
+midi:C#3;midi:CC40=iop/colorbalancergb/brilliance/mid-tones
+midi:D3;midi:CC40=iop/colorbalancergb/global brilliance
+midi:D#3;midi:CC40=iop/colorbalancergb/brilliance/shadows
+
+
+None;midi:CC34=iop/sigmoid/target black
+midi:C#3;midi:CC34=iop/filmicrgb/black relative exposure
+
+
+None;midi:CC35=iop/sigmoid/target white
+midi:C#3;midi:CC35=iop/filmicrgb/white relative exposure
+
+
+None;midi:CC38=iop/channelmixerrgb/illuminant
+
+none;midi:CC39=iop/channelmixerrgb/hue
+midi:C#3;midi:CC39=iop/channelmixerrgb/chroma
+midi:D3;midi:CC39=iop/colorbalancergb/hue shift
+
+none;midi:CC36=iop/colorbalancergb/global saturation
+
+midi:C#3;midi:CC36=iop/colorbalancergb/saturation/shadows
+midi:D3;midi:CC36=iop/colorbalancergb/saturation/mid-tones
+midi:D#3;midi:CC36=iop/colorbalancergb/saturation/highlights
+
+none;midi:CC37=iop/colorbalancergb/global vibrance
+
+midi:C#3;midi:CC37=iop/colorbalancergb/global chroma
+midi:D3;midi:CC37=iop/colorbalancergb/chroma/shadows
+midi:D#3;midi:CC37=iop/colorbalancergb/chroma/mid-tones
+midi:E3;midi:CC37=iop/colorbalancergb/chroma/highlights
+
+midi:F#7=lib/snapshots/take snapshot
+midi:F#7;shift=lib/snapshots/toggle last snapshot
+midi:C#7=global/fullscreen
+midi:E6=lib/export/export
+midi:E5;shift=views/darkroom/zoom close-up
+midi:E5=views/darkroom/zoom in
+midi:E5=views/lighttable/move/vertical;next
+midi:F5=views/darkroom/zoom out
+midi:F5=views/lighttable/move/vertical;previous
+midi:E5=views/map/scroll down
+midi:F#5=views/darkroom/image back
+midi:F#5;shift=iop/flip/rotate 90 degrees CCW
+midi:F#5=views/lighttable/move/horizontal;previous
+midi:G5=views/darkroom/image forward
+midi:G5;shift=iop/flip/rotate 90 degrees CW
+midi:G5=views/lighttable/move/horizontal;next
+
+midi:G#5=global/toggle focus peaking
+midi:A5=views/darkroom/color assessment
+midi:A#5=views/darkroom/high quality processing
+midi:B5=views/darkroom/raw overexposed/toggle
+midi:C6=views/darkroom/overexposed/toggle
+midi:C#6=views/darkroom/softproof
+midi:D6=views/darkroom/gamut check
+midi:D#6=views/darkroom/guide lines/toggle
