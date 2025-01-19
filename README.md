@@ -23,6 +23,7 @@ DxO_PureRAW (commercial software) - http://www.dxo.com
 #### USAGE
 Require this script from your main lua file
 Specify the location of the DxO_PureRAW executable in Lua Options
+On macOS this can be the Appliction .app or the actual executable within the .app stucture
 
 Select an image or images for processing with DxO pureRAW
 Expand the DxO PureRAW panel (ighttable view) 
@@ -40,13 +41,13 @@ The resulting image(s) will be imported
 
 #### CAVEATS
 This script was tested using using the following platforms:
-- macOS Sonoma 14.5 on Apple Silcon
+- macOS Sonoma 14.5 and aove on Apple Silcon
 - Windows 11 ARM running in a VM on Apple Silicon
 
-- darktable 4.8.0 and 4.8.1
+- darktable 4.8.0 and above
 - DxO PureRAW 3 and 4
 
-# 
+ 
 ### ZereneStacker
 
 Create focus stack using Zerene Stacker (https://zerenesystems.com/)
