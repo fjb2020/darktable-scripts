@@ -78,7 +78,7 @@ USAGE
 
 
 This script was tested on the following platforms:
-  - darktable 4.8.1 on:
+  - darktable 4.8.1 and above on:
     - macOS on Apple Silcon
     - Windows 11 ARM running in a VM on Apple Silicon
     - Linux - Ubuntu LXQt 24.01.1 LTS running on amd64 
