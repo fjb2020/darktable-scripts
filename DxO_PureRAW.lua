@@ -209,6 +209,12 @@ local function start_processing()
   job = dt.gui.create_job( _"Running DxO PureRAW...", true, stop_job )
 
   local DxO_cmd = df.sanitize_filename( dt.preferences.read( mod, "DxO_pureRAWExe", "string" ) )
+  if dt.configuration.running_os == "macos" then
+    if string.sub(DxO_cmd,-5) == ".app'" then
+      -- user has entered .app folder rather than actual binary
+      DxO_cmd = "open -W -a " .. DxO_cmd
+    end
+  end
 
   DxO_cmd = DxO_cmd .. " " .. img_list
 
@@ -216,7 +222,13 @@ local function start_processing()
 
   local dxo_start_time = os.date("*t",os.time())
   dt.print_log( 'starting DxO_pureRAW at ' .. dxo_start_time.hour ..":" .. dxo_start_time.min .. ":" .. dxo_start_time.sec)
-  local resp = dsys.external_command( DxO_cmd )
+  local resp
+  if dt.configuration.running_os == 'windows' then
+    resp = dsys.windows_command( DxO_cmd )
+  else
+    resp = dsys.external_command( DxO_cmd )
+  end
+  
   if resp ~= 0 then
     dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
     dt.print( _'could not start DxO_pureRAW application - is it set correctly in Lua Options?' )
@@ -225,6 +237,7 @@ local function start_processing()
     end
     return
   end
+  
   local dxo_end_time = os.date("*t",os.time())
   dt.print_log("DxO Finihsed " .. dxo_end_time.hour ..":" .. dxo_end_time.min .. ":" .. dxo_end_time.sec)
   if(job.valid) then
