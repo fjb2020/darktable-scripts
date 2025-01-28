@@ -7,7 +7,7 @@ and ChristianBirzer https://github.com/ChristianBirzer/darktable_extra_scripts
 They are dependent on the darktable-org/lua-scripts libraries. They need the darktable-org/lua-scripts respository
 installed.  Instructions for installing can be found at https://github.com/darktable-org/lua-scripts/README.md
 
-# 
+
 ### DxO_PureRAW
 
 Processes raw images in darktable with DxO_PureRAW (https://www.dxo.com/dxo-pureraw/)
@@ -45,7 +45,7 @@ This script was tested using using the following platforms:
 - Windows 11 ARM running in a VM on Apple Silicon
 
 - darktable 4.8.0 and above
-- DxO PureRAW 3
+- DxO PureRAW 3 only
 - NOTE - DxO PureRAW 4 is currently not supported due to changes in the way version 4 runs
          work is ongoing to fix this
 
