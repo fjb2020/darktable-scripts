@@ -45,7 +45,9 @@ This script was tested using using the following platforms:
 - Windows 11 ARM running in a VM on Apple Silicon
 
 - darktable 4.8.0 and above
-- DxO PureRAW 3 and 4
+- DxO PureRAW 3
+- NOTE - DxO PureRAW 4 is currently not supported due to changes in the way version 4 runs
+         work is ongoing to fix this
 
  
 ### ZereneStacker
