@@ -27,7 +27,7 @@
     When DxO.Pureraw exits, the result files are imported and optionally grouped with the original files.
 
     ADDITIONAL SOFTWARE NEEDED FOR THIS SCRIPT
-    * dxo_pureraw - http://www.dxo.com
+    * dxo_pureraw 3 - http://www.dxo.com
 
     USAGE 
     * require this script from your main lua file
@@ -50,12 +50,14 @@
     * The resulting image(s) will be imported 
 
     CAVEATS
-    * This script was tested using using darktable 4.8.0 and 4.8.1 on the following platforms:
+
+    * This script was tested using using darktable 4.8.0 and above
 
       - macOS Sonoma 14.5 on Apple Silcon
       - Windows 11 ARM running in a VM on Apple Silicon
-    * 
-    * 
+    
+      - DxO PureRAW 3 and 4.7
+    
     BUGS, COMMENTS, SUGGESTIONS
     * Send to Fiona Boston, fiona@fbphotography.uk
 
@@ -67,31 +69,33 @@ local df = require 'lib/dtutils.file'
 local log = require "lib/dtutils.log"
 local dsys = require 'lib/dtutils.system'
 
+-- lua libraries installed via luarocks https://github.com/luarocks/luarocks/wiki
+-- luafilesystem - https://lunarmodules.github.io/luafilesystem/index.html - file system functions
+-- additional validation and output checking is activated if lfs is present
+local lfs_loaded,lfs = pcall(require,'lfs')
+if lfs_loaded == false then
+  dt.print_log("No lfs module")
+else
+  dt.print_log("lfs module found")
+end
 
 du.check_min_api_version("7.0.0", "DxO_pureRAW")
 
 local script_data = {}
-local temp
-
+script_data.metadata = {
+  name = "DxO_PureRAW",
+  purpose = "process images in DxO_PureRAW",
+  author = "Fiona Boston <fiona@fbphotography.uk>",
+  help = "https://github.com/fjb2020/darktable-scripts",
+}
 script_data.destroy = nil -- function to destory the script
 script_data.destroy_method = nil -- set to hide for libs since we can't destroy them commpletely yet, otherwise leave as nil
 script_data.restart = nil -- how to restart the (lib) script after it's been hidden - i.e. make it visible again
 
 local gettext = dt.gettext
--- Define a function called _ to make the code more readable and have it call dgettext 
--- with the proper domain.
-function _(msgid)
-    -- underscore function
-    -- translate message to local domain
-    return gettext.dgettext("dxo_pureraw", msgid)
-end
 
-script_data.metadata = {
-   name = "DxO_PureRAW",
-   purpose = _"process images in DxO_PureRAW",
-   author = "Fiona Boston <webmaster@fbphotography.uk>",
-   help = "https://blog.fbphotography.uk/darktable/scripts/dxopureraw",
-}
+
+
 
 local GUI = { --GUI Elements Table
   optionwidgets = {
@@ -105,6 +109,20 @@ local GUI = { --GUI Elements Table
   },
   options = {},
   run = {},
+}
+
+local params = {
+  DxO_exec = '',
+  DxO_version = '',
+  DxO_extensions = {},
+  DxO_cmd = '',
+  DxO_staging = '',
+  DxO_timeout = '',
+  img_table = {},
+  img_count = 0,
+  img_list = "",
+  img_path = "",
+  opfile_table = {},
 }
 
 local mod = 'module_DxO_PureRAW'
@@ -121,7 +139,7 @@ end
 dt.print_log( "localedir: "..localedir )
 gettext.bindtextdomain( 'DxO_pureRAW', localedir )
 
-
+local job
 
 -- declare a local namespace and a couple of variables we'll need to install the module
 local mE = {}
@@ -133,6 +151,69 @@ mE.module_installed = false  -- keep track of whether the module is module_insta
 -- functions
 -- *************************************************
 
+
+
+function _(msgid)
+  -- Define a function called _ to make the code more readable and have it call dgettext 
+  -- with the proper domain.
+  return gettext.dgettext("dxo_pureraw", msgid)
+end
+
+
+
+
+-- *************************************************
+local function Get_DxO_app()
+
+  params.DxO_exec = df.sanitize_filename( dt.preferences.read( mod, "DxO_pureRAWExe", "string" ) )
+  dt.print_log("DxO_exec is " .. params.DxO_exec)
+
+  if dt.configuration.running_os == 'macos' then
+    if df.test_file(params.DxO_exec,"e") then
+      dt.print_log("Found " .. params.DxO_exec)
+    else
+      dt.print("Cannot find " .. params.DxO_exec .. "  - Please check DxO_pureRAW executable in Lua options ...")
+      return false
+    end
+    if string.sub(params.DxO_exec,-5) ~= ".app'" then
+     dt.print("Please use the .app application ...")
+     return false
+    end
+  end
+
+
+
+  params.DxO_version = ''
+  if params.DxO_exec:find("3") then
+    params.DxO_version = '3'
+  end
+  if params.DxO_exec:find("4") then
+    params.DxO_version = '4'
+    params.DxO_staging = df.sanitize_filename( dt.preferences.read( mod, "DxOStagingFolder", "string" ) )
+    -- remove single quotes from folder name
+    params.DxO_staging = string.gsub(params.DxO_staging,"'","")
+    if not(df.check_if_file_exists(params.DxO_staging)) then
+      dt.print(_('Cannot find DxO staging folder '.. params.DxO_staging .. ' - please check parameters in global options -> Lua Options'))
+      return false
+    end
+    params.DxO_timeout = dt.preferences.read( mod, 'DxOTimeout', "string")
+    params.DxO_timeout = tonumber(params.DxO_timeout)
+    if (params.DxO_timeout < 0) or (params.DxO_timeout > 5) then
+      dt.print(_('Invalid DxO Timeout specifed - 0 to 5 allowed, please check in Lua options'))
+      return false
+    end
+  end
+  if params.DxO_version == '3' then
+    params.DxO_extensions = {"_DxO_DeepPRIMEXD.dng","_DxO_DeepPRIME.dng","_DxO_DeepPRIMEXD.tif","_DxO_DeepPRIME.tif","_DxO_DeepPRIMEXD.jpg","_DxO_DeepPRIME.jpg"}
+  else
+    params.DxO_extensions = {""}
+  end
+  params.DxO_cmd = params.DxO_exec
+  return true
+end
+
+-- *************************************************
+
 local function sanitize_filename(filepath)
   local path = df.get_path(filepath)
   local basename = df.get_basename(filepath)
@@ -141,21 +222,21 @@ local function sanitize_filename(filepath)
   return path .. sanitized .. "." .. filetype
 end
 
-
+-- *************************************************
 --removes spaces from the front and back of passed in text
 local function clean_spaces(text)
   text = string.gsub(text,'^%s*','')
   text = string.gsub(text,'%s*$','')
   return text
 end
-
+-- *************************************************
 local function save_preferences()
   dt.preferences.write( mod, 'group', 'bool', GUI.optionwidgets.group.value )
   dt.preferences.write( mod, 'copy_tags', 'bool', GUI.optionwidgets.copy_tags.value )
   dt.preferences.write( mod, 'copy_metadata', 'bool', GUI.optionwidgets.copy_metadata.value )
   dt.preferences.write( mod, 'add_tags', 'string', GUI.optionwidgets.add_tags.text )
 end
-
+-- *************************************************
 local function load_preferences()
   GUI.optionwidgets.group.value = dt.preferences.read( mod, 'group', 'bool' )
   GUI.optionwidgets.copy_tags.value = dt.preferences.read( mod, 'copy_tags', 'bool')
@@ -163,149 +244,363 @@ local function load_preferences()
   GUI.optionwidgets.add_tags.text = dt.preferences.read( mod, 'add_tags', 'string')
 end
 
+-- *************************************************
+local function sleep(seconds)
+  local sec = tonumber(os.clock() + seconds); 
+  while (os.clock() < sec) do 
+  end   
+
+end
+
+-- *************************************************
 -- stop running export
 local function stop_job( job )
   job.valid = false
 end
+-- *************************************************
+local function getfilesize(filename)
+  
+  local thisfile = io.open(filename,'r')
+  local thisfilesize = thisfile:seek("end")
+  io.close(thisfile)
+  return thisfilesize
 
+end
+
+
+-- *************************************************
+local function check_DxO_processed(checkfile)
+  dt.print_log("Checking for " .. checkfile)
+  if df.check_if_file_exists(checkfile) then
+    -- file exists - what is filesize
+    local thisfilesize = getfilesize(checkfile)
+    dt.print_log(checkfile .. " exists, size is  " ..  thisfilesize)
+    if thisfilesize > 0 then
+      sleep (5) -- wait 5 seconds just to make sure file is properly saved by DxO
+      return true
+    else
+      return false
+    end
+  end
+  return false
+end
+
+-- ************************************************
+-- Run DxO_pureRAW v3
+-- ************************************************
+local function run_pureRAW_v3()
+
+    -- PureRAW version 3 terminates on completion of processing so we can easily detect when it's complete
+  
+    -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
+    job = dt.gui.create_job( _"Running DxO_pureRAW v3 ...", true, stop_job )
+
+    if dt.configuration.running_os == "macos" then
+      params.DxO_cmd = "open -W -a " .. params.DxO_cmd
+    end
+    params.DxO_cmd = params.DxO_cmd .. " " .. params.img_list
+    dt.print_log( 'commandline: ' .. params.DxO_cmd )
+
+    local dxo_start_time = os.date("*t",os.time())
+    dt.print_log( 'starting DxO_pureRAW at ' .. dxo_start_time.hour ..":" .. dxo_start_time.min .. ":" .. dxo_start_time.sec)
+    local resp
+    if dt.configuration.running_os == 'windows' then
+      resp = dsys.windows_command( params.DxO_cmdDxO_cmd )
+    else
+      resp = dsys.external_command( params.DxO_cmd )
+    end
+    
+    if resp ~= 0 then
+      dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
+      dt.print( _'could not start DxO_pureRAW application - is it set correctly in Lua Options?' )
+      if(job.valid) then
+        job.valid = false
+      end
+      return false
+    end
+    
+    local dxo_end_time = os.date("*t",os.time())
+    dt.print_log("DxO Finihsed " .. dxo_end_time.hour ..":" .. dxo_end_time.min .. ":" .. dxo_end_time.sec)
+    if(job.valid) then
+      job.valid = false
+    end
+    return true
+end
+
+-- ************************************************
+-- Run DxO_pureRAW v4
+-- ************************************************
+local function run_pureRAW_v4()
+--[[
+
+    PureRAW version 4 continues to run in the background on completion of processing 
+    we can't therefore wait fot the open command to complete - it will 'never' complete if we run it in wait mode
+    
+    so we have a different approach to that checks for the existance of the output files to assume process completion
+
+]]
+  -- check staging folder is empty - depends on lfsfilesystem which may not be available
+  if lfs_loaded then
+    local staging_clear = true
+    for this_file in lfs.dir(params.DxO_staging) do
+      if this_file ~= "." and this_file ~= ".." then
+        dt.print_log(' Found '.. this_file)
+        if string.sub(this_file,1,1) ~= '.' then -- hidden files are ok 
+          staging_clear=false
+          break
+        end
+      end
+    end
+    if not (staging_clear) then
+      dt.print_log(params.DxO_staging .. " not empty")
+      dt.print(_("Please ensure the folder " .. params.DxO_staging.. " is empty"))
+      return false
+    end
+  end
+      -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
+  job = dt.gui.create_job( _"Running DxO_pureRAW v4 ...", true, stop_job )
+
+  if dt.configuration.running_os == "macos" then
+    -- open without -w (wait) option so control will come back immediately
+    params.DxO_cmd = "open -a " .. params.DxO_cmd
+  end
+  params.DxO_cmd = params.DxO_cmd .. " " .. params.img_list
+  dt.print_log( 'commandline: ' .. params.DxO_cmd )
+  dt.print( 'Activating DxO_pureRAW ...')
+  local resp
+  if dt.configuration.running_os == 'windows' then
+    resp = dsys.windows_command( params.DxO_cmdDxO_cmd )
+  else
+    resp = dsys.external_command( params.DxO_cmd )
+  end
+  if job.valid then
+    job.valid = false
+  end
+  -- now wait for output files to be created
+  -- We assume that the DxO staging folder has been selected as the output folder in pureRAW 4
+  -- we also assume that the filename format will be imagebase-processmode.dng - maybe will parameterise this in future
+  --
+  local processed_images = 0
+  local DxO_complete = false
+  local dxo_start_time = os.time()
+  job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 ...", true, stop_job )
+  while not DxO_complete do
+    local dxo_current_time = os.time()
+    dt.print_log("Total wait is " .. os.difftime(dxo_current_time,dxo_start_time) .. " seconds")
+    job.valid = false
+    job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
+    -- wait 5 seconds then see if images are ready
+    sleep(5)
+    
+    for i = 1, params.img_count do
+      if params.opfile_table[i][4] == false then
+          local checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][2]
+          dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
+          local rv = check_DxO_processed(checkfile)
+          if not(rv) then
+            checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][3]
+            dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
+            rv = check_DxO_processed(checkfile)
+            params.opfile_table[i][4] = rv
+          else
+            params.opfile_table[i][4] = rv
+          end
+      end
+    end
+
+    -- logic to check if all images have been processed (or we're out of time)
+    local all_complete = true
+    local old_proceseed_images = processed_images
+    processed_images = 0
+    for i = 1, params.img_count do
+      if params.opfile_table[i][4] == true then
+        processed_images = processed_images + 1
+        -- reest timeout
+      else
+        all_complete = false
+      end
+    end
+    if processed_images > old_proceseed_images then
+      -- another image has been processed - reset timeout
+      dxo_start_time = os.time()
+    end
+    if all_complete then
+      DxO_complete = true
+    end
+
+-- put in a time check here to break out of loop eventually - 
+-- in case not all expected images have been processed - don't want to loop forever
+    local dxo_current_time = os.time()
+    if os.difftime(dxo_current_time,dxo_start_time) > (params.DxO_timeout * 60) then
+      DxO_complete = true
+    end
+
+  end
+
+
+  job.valid = false
+  return true
+
+end
+
+
+-- ************************************************
+-- import image
+-- ************************************************
+local function import_DxO(this_dxo_image,this_raw_img,move_DxO)
+
+  dt.print_log("Found " ..  this_dxo_image)
+  if move_DxO then
+    -- move Dxo Image to same directory as raw image
+    -- use df.create_unique_file in case f DxO filename already exists in source folder
+    local target_filename = df.create_unique_filename( this_raw_img.path .. os_path_seperator .. this_dxo_image  )
+    local source_image = params.DxO_staging .. os_path_seperator .. this_dxo_image
+    dt.print_log('Source is ' .. source_image .. ' target is ' .. target_filename)
+    if target_filename ~= "" then
+      -- move stacked image to source folder and import
+      if df.file_move(source_image,target_filename) then
+        -- stacked tif now in correct folder and ready for import
+        dt.print_log("Moved " .. source_image .. " to " .. target_filename)
+        this_dxo_image = target_filename
+      else
+        return false
+      end
+    else
+      return false
+    end
+  end
+
+
+  local imported_image = dt.database.import(this_dxo_image)
+  -- images already in the database will have any sidecar files re-read 
+  if imported_image == nil then
+    dt.print_error("Failed to import " .. this_dxo_image)
+    return false
+  end
+  if GUI.optionwidgets.copy_tags.value == true then
+    -- copy tags except 'darktable' tags
+    local raw_tags = dt.tags.get_tags(this_raw_img)
+    for _,this_tag in pairs(raw_tags) do
+      if not (string.sub(this_tag.name,1,9) == "darktable") then
+        dt.tags.attach(this_tag,imported_image)
+      end
+    end
+  end
+  -- add extra tag
+  local set_tag = GUI.optionwidgets.add_tags.text
+  if set_tag ~= nil then -- add additional user-specified tags
+    for tag in string.gmatch(set_tag, '[^,]+') do
+      tag = clean_spaces(tag)
+      tag = dt.tags.create(tag)
+      dt.tags.attach(tag, imported_image)
+    end
+  end
+    
+  if GUI.optionwidgets.copy_metadata.value == true then
+    -- metadata - title, desc, creator, rights
+    imported_image.title = this_raw_img.title
+    imported_image.description = this_raw_img.description
+    imported_image.creator = this_raw_img.creator
+    imported_image.rights = this_raw_img.rights
+  end
+
+  if GUI.optionwidgets.group.value == true then
+    -- group if requested and make leader
+    imported_image:group_with(this_raw_img)
+    imported_image:make_group_leader()
+  end
+  return true
+end
+-- ************************************************
 -- main function
+-- ************************************************
 local function start_processing()
   local exported_images_table = {}
   dt.print_log( "starting DxO_pureRAW processing..." )
 
   save_preferences()
 
-  -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  local job = dt.gui.create_job( _"Running DxO_pureRAW...", true, stop_job )
-
   local images = dt.gui.selection() --get selected images
-  if #images < 1 then --ensure enough images selected
+  params.img_count = #images
+  if params.img_count < 1 then --ensure enough images selected
     dt.print(_('not enough images selected, select at least 1 image to process'))
     return
   end
 
-  local img_table = {}
-  local img_count = 0
-  local img_list = ""
-  local img_path = ""
- 
+  -- check DxO app exists and which version it is
+  local rv = Get_DxO_app()
+  if not(rv) then
+    return
+  end
     -- image list comprises raw file names of all images in selection
-    -- also build list of expected images being exported by DXO Pureraw for later import
+    -- also build list of expected images being exported by DXO Pureraw for later import (pureRAW 4 only)
+  --local today = os.date("*t")
+  --local opfile_prefix = today.year .. string.format("%02d",today.month) .. string.format( "%02d",today.day)
 
   for i,raw_img in pairs(images) do
     -- appeand this raw image to string of images to be sent to DxO_PureRAW
-    img_list = img_list .. '"' ..  raw_img.path  .. os_path_seperator .. raw_img.filename .. '" '
+    params.img_list = params.img_list .. '"' ..  raw_img.path  .. os_path_seperator .. raw_img.filename .. '" '
+    table.insert(params.img_table,raw_img)
+    params.opfile_table[i] = {}
+    params.opfile_table[i][1] = raw_img
+    if params.DxO_version == '4' then
+      -- build list of expected files to be created by DxO 4
       
-    img_count = img_count + 1
-    table.insert(img_table,raw_img)
-
-  end
-
-  -- stop job and remove progress_bar from ui, but only if not alreay canceled
-  if(job.valid) then
-    job.valid = false
-  end
-
-  job = dt.gui.create_job( _"Running DxO PureRAW...", true, stop_job )
-
-  local DxO_cmd = df.sanitize_filename( dt.preferences.read( mod, "DxO_pureRAWExe", "string" ) )
-  if dt.configuration.running_os == "macos" then
-    if string.sub(DxO_cmd,-5) == ".app'" then
-      -- user has entered .app folder rather than actual binary
-      DxO_cmd = "open -W -a " .. DxO_cmd
+      -- We assume that DxO will use the same folder as the source image 
+      -- we also assume that the filename format will be yyyymmyy-imagebase.dng 
+      -- maybe will parameterise these in future
+      local thisname1 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME.dng'
+      local thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s.dng'
+      dt.print_log("Output file " .. i .. ' is ' .. thisname1 .. ", " .. thisname2)
+      params.opfile_table[i][2] = thisname1
+      params.opfile_table[i][3] = thisname2
+      params.opfile_table[i][4] = false -- flag to indicate file has been processed by DxO_PureRAW and is ready to import
     end
   end
 
-  DxO_cmd = DxO_cmd .. " " .. img_list
-
-  dt.print_log( 'commandline: '..DxO_cmd )
-
-  local dxo_start_time = os.date("*t",os.time())
-  dt.print_log( 'starting DxO_pureRAW at ' .. dxo_start_time.hour ..":" .. dxo_start_time.min .. ":" .. dxo_start_time.sec)
-  local resp
-  if dt.configuration.running_os == 'windows' then
-    resp = dsys.windows_command( DxO_cmd )
-  else
-    resp = dsys.external_command( DxO_cmd )
+-- Run process dependent on DxO verion
+  if params.DxO_version == '3' then
+    rv = run_pureRAW_v3()
   end
-  
-  if resp ~= 0 then
-    dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
-    dt.print( _'could not start DxO_pureRAW application - is it set correctly in Lua Options?' )
-    if(job.valid) then
-      job.valid = false
-    end
+
+  if params.DxO_version == '4' then
+    rv = run_pureRAW_v4()
+  end
+
+  if not(rv) then
     return
   end
-  
-  local dxo_end_time = os.date("*t",os.time())
-  dt.print_log("DxO Finihsed " .. dxo_end_time.hour ..":" .. dxo_end_time.min .. ":" .. dxo_end_time.sec)
-  if(job.valid) then
-    job.valid = false
-  end
-
-  local dxo_extensions = {}
-  dxo_extensions={"_DxO_DeepPRIMEXD.dng","_DxO_DeepPRIME.dng","_DxO_DeepPRIMEXD.tif","_DxO_DeepPRIME.tif","_DxO_DeepPRIMEXD.jpg","_DxO_DeepPRIME.jpg"}
- 
-  for ii,this_raw_img in pairs(img_table) do
-      
-    dt.print_log("Post processing " .. this_raw_img.filename)
-
-    -- test for existance of DXO images
+  -- Import processed images into darktable
+  for ii = 1, params.img_count do
+  --for ii,this_raw_img in pairs(params.img_table) do
+    local this_raw_img = params.opfile_table[ii][1]
     local img_type = string.sub(this_raw_img.filename,-3)
-    local this_dxo_image_base = (df.chop_filetype(this_raw_img.path .. os_path_seperator .. this_raw_img.filename)) .. "-" .. img_type
-    for jj = 1, 6 do
-      local this_dxo_image = sanitize_filename(this_dxo_image_base .. dxo_extensions[jj])
-      if df.check_if_file_exists(this_dxo_image) then
-        dt.print_log("Found " ..  this_dxo_image)
-        local imported_image = dt.database.import(this_dxo_image)
-        -- images already in the database will have any sidecar files re-read 
-        if imported_image == nil then
-          dt.print_error("Failed to import " .. this_dxo_image)
-        else
-          if GUI.optionwidgets.copy_tags.value == true then
-           -- copy tags except 'darktable' tags
-            local raw_tags = dt.tags.get_tags(this_raw_img)
-            for _,this_tag in pairs(raw_tags) do
-              if not (string.sub(this_tag.name,1,9) == "darktable") then
-                dt.tags.attach(this_tag,imported_image)
-              end
-            end
-          end
-          -- add extra tag
-          local set_tag = GUI.optionwidgets.add_tags.text
-          if set_tag ~= nil then -- add additional user-specified tags
-            for tag in string.gmatch(set_tag, '[^,]+') do
-              tag = clean_spaces(tag)
-              tag = dt.tags.create(tag)
-              dt.tags.attach(tag, imported_image)
-            end
-          end
-           
-          if GUI.optionwidgets.copy_metadata.value == true then
-            -- metadata - title, desc, creator, rights
-            imported_image.title = this_raw_img.title
-            imported_image.description = this_raw_img.description
-            imported_image.creator = this_raw_img.creator
-            imported_image.rights = this_raw_img.rights
-          end
-
-          if GUI.optionwidgets.group.value == true then
-            -- group if requested and make leader
-            imported_image:group_with(this_raw_img)
-            imported_image:make_group_leader()
-          end
-          
+    dt.print_log("Post processing " .. this_raw_img.filename)
+    if params.DxO_version == '3' then
+      -- look for DxO images based on known extensions
+      local move_DxO = false
+      local this_dxo_image_base = (df.chop_filetype(this_raw_img.path .. os_path_seperator .. this_raw_img.filename)) .. "-" .. img_type
+      for jj = 1, #params.DxO_extensions do
+        local this_dxo_image = sanitize_filename(this_dxo_image_base .. params.DxO_extensions[jj])
+        if df.check_if_file_exists(this_dxo_image) then
+          rv = import_DxO(this_dxo_image,this_raw_img,move_DxO)
+        end 
+      end
+    else
+      local move_DxO = true
+      for jj = 2,3 do
+        local this_dxo_image = params.opfile_table[ii][jj]
+        if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. this_dxo_image) then
+          rv = import_DxO(this_dxo_image,this_raw_img,move_DxO)
         end
       end
     end
    end
-
-
-
 end
 
-
+-- ******************************************************
+-- Setup and Install module
+-- ******************************************************
 
 
 GUI.optionwidgets.group = dt.new_widget('check_button') {
@@ -381,7 +676,27 @@ GUI.run = dt.new_widget('button'){
 }
 
 
--- Preferences - locate DxO_PureRAW executable
+-- Preferences - locate DxO_PureRAW executable, setup staging folder (for DxO 4)
+
+dt.preferences.register(
+  mod, -- script
+  "DxOTimeout",	-- name
+	"string",	-- type
+  _('DxO 4 Timeout (mins 0 - 5)'),	-- label
+	_('Set the max time in minutes (1 - 5) allowed per image for processing by DxO 4'),	-- tooltip
+  "2" -- default,
+)
+
+dt.preferences.register(
+  mod, -- script
+  "DxOStagingFolder",	-- name
+	"directory",	-- type
+  _('DxO 4 Staging Folder'),	-- label
+	_('Select the staging folder used by DxO 4'),	-- tooltip
+  "5" -- default,
+)
+
+
 dt.preferences.register(
   mod, -- script
   "DxO_pureRAWExe",	-- name
@@ -394,6 +709,7 @@ dt.preferences.register(
 
 
 load_preferences()
+
 
 local function install_module()
   if not mE.module_installed then

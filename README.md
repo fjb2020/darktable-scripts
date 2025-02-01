@@ -16,36 +16,18 @@ This script adds a new panel to integrate DxO_PureRAW software into darktable to
 
 When DxO_PureRAW exits, the result files are imported and optionally grouped with the original files.
 
-ADDITIONAL SOFTWARE NEEDED FOR THIS SCRIPT
 
-DxO_PureRAW (commercial software) - http://www.dxo.com
 
 #### USAGE
-Require this script from your main lua file
-Specify the location of the DxO_PureRAW executable in Lua Options
-On macOS this can be the Appliction .app or the actual executable within the .app stucture
+Plesae see separate README DxO_PureRAW-Readme.md for details on using the script
 
-Select an image or images for processing with DxO pureRAW
-Expand the DxO PureRAW panel (ighttable view) 
-    
-Select options as required:
-- group - group processed image with associated RAW image
-- copy tags - copy tags from RAW image to the new  processed image
-- copy metadata - copy metadata (title, description, creator, rights) to the new processed image
-- new tags - tags to be added to the new processed image
+### HuginPanorama
 
-Press "Process with DxO_PureRAW"
-Process the images with DxO.PureRAW then save the results
-Exit DxO_PureRAW
-The resulting image(s) will be imported 
+ ================================================================
 
-#### CAVEATS
-This script was tested using using the following platforms:
-- macOS Sonoma 14.5 and aove on Apple Silcon
-- Windows 11 ARM running in a VM on Apple Silicon
+Create panorama using Hugin and Hugin tools 
 
-- darktable 4.8.0 and above
-- DxO PureRAW 3 and 4
+Please see separate README HuginPanorama-Readne.md for details on using the script
 
  
 ### ZereneStacker
@@ -59,6 +41,10 @@ optionally group the images and optionally copy and add tags to the imported ima
 ADDITIONAL SOFTWARE NEEDED FOR THIS SCRIPT
 
 Zerene Stacker (commercial software) - https://zerenesystems.com/
+
+OPTIONAL ADDITIONAL SOFTWARE USED BY SCRIPT IF INSTALLED
+
+LuaFileSystem - https://luarocks.org/modules/hisham/luafilesystem
 
 
 #### PRIOR TO FIRST RUN
