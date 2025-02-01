@@ -35,7 +35,7 @@ Prior to first run, specify the following in Lua options:
     
     DxO 4 Timeout
         Set the maximum time in minutes the script should wait for pureRAW 4
-        to process images. If not set a default of 5 minutes seconds will be used. 
+        to process an image. If not set a default of 2 minutes seconds will be used. 
         A range of 0 to 30 is allowed. 
         See notes below for an explanation of this parameter 
 
@@ -113,7 +113,7 @@ The updated script now launches version 4 but doesn't wait for it to close as th
 
 Once these images are all present they are moved to the source image folder and imported from there. 
 
-I needed to make sure that the script didn't wait foreever for all the processed images to appear (for e.g. if DxO processing is cancelled, or images are removed from lightbox etc then some of images it is waitng for will never appear) so there is a per image timeout (default 2 minutes), after which the script will import any processed images but leave the rest. This timeout is configurable between 0 and 5 minutes.
+I needed to make sure that the script didn't wait foreever for all the processed images to appear (for e.g. if DxO processing is cancelled, or images are removed from lightbox etc then some of images it is waitng for will never appear) so there is a per image timeout (default 2 minutes). If a processed image doesn't appear in the staging folder within this time the script will import any processed images but leave the rest. This timeout is configurable between 0 and 30 minutes.
 
 A counter of number of images processed and elapsed time is displayed the the bottom of the left panel of lighttable.
 
