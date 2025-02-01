@@ -120,6 +120,16 @@ end
 du.check_min_api_version("7.0.0", "ZereneStacker")
 
 local script_data = {}
+-- return data structure for script_manager
+
+local script_data = {}
+
+script_data.metadata = {
+  name = "ZereneStacker",
+  purpose = "Create focus stack using Zerene Stacker",
+  author = "Fiona Boston <fiona@fbphotography.uk>",
+  help = "https://github.com/fjb2020/darktable-scripts"
+}
 local temp
 
 script_data.destroy = nil -- function to destory the script
@@ -642,6 +652,16 @@ GUI.run = dt.new_widget('button'){
 -- Preferences - locate Zerene App and staging folder used for image export and script
 dt.preferences.register(
   mod, -- script
+  "StackerStagingFolder",	-- name
+	"directory",	-- type
+  _('Stacker Staging Folder'),	-- label
+	_('Select the staging folder to be used for stacking'),	-- tooltip
+  "" -- default,
+)
+
+
+dt.preferences.register(
+  mod, -- script
   "ZereneJavaFolder",	-- name
 	"directory",	-- type
   _('Zerene Stacker Java Folder'),	-- label
@@ -658,14 +678,7 @@ dt.preferences.register(
   "" -- default,
 )
 
-dt.preferences.register(
-  mod, -- script
-  "StackerStagingFolder",	-- name
-	"directory",	-- type
-  _('Stacker Staging Folder'),	-- label
-	_('Select the staging folder to be used for stacking'),	-- tooltip
-  "" -- default,
-)
+
 
 
 load_preferences()
