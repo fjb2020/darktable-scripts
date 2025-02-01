@@ -198,8 +198,8 @@ local function Get_DxO_app()
     end
     params.DxO_timeout = dt.preferences.read( mod, 'DxOTimeout', "string")
     params.DxO_timeout = tonumber(params.DxO_timeout)
-    if (params.DxO_timeout < 0) or (params.DxO_timeout > 5) then
-      dt.print(_('Invalid DxO Timeout specifed - 0 to 5 allowed, please check in Lua options'))
+    if (params.DxO_timeout < 0) or (params.DxO_timeout > 30) then
+      dt.print(_('Invalid DxO Timeout specifed - 0 to 30 allowed, please check in Lua options'))
       return false
     end
   end
@@ -686,8 +686,8 @@ dt.preferences.register(
   mod, -- script
   "DxOTimeout",	-- name
 	"string",	-- type
-  _('DxO 4 Timeout (mins 0 - 5)'),	-- label
-	_('Set the max time in minutes (1 - 5) allowed per image for processing by DxO 4'),	-- tooltip
+  _('DxO 4 Timeout (mins 0 - 30)'),	-- label
+	_('Set the max time in minutes (0 - 30) allowed per image for processing by DxO 4'),	-- tooltip
   "2" -- default,
 )
 
