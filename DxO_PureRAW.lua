@@ -364,12 +364,16 @@ local function run_pureRAW_v4()
     -- open without -w (wait) option so control will come back immediately
     params.DxO_cmd = "open -a " .. params.DxO_cmd
   end
+  if dt.configuration.running_os == "windows" then 
+    
+    params.DxO_cmd = "start " .. '"Run DxO pureRAW 4"' .. " " .. params.DxO_cmd
+  end
   params.DxO_cmd = params.DxO_cmd .. " " .. params.img_list
   dt.print_log( 'commandline: ' .. params.DxO_cmd )
   dt.print( 'Activating DxO_pureRAW ...')
   local resp
   if dt.configuration.running_os == 'windows' then
-    resp = dsys.windows_command( params.DxO_cmdDxO_cmd )
+    resp = dsys.windows_command( params.DxO_cmd )
   else
     resp = dsys.external_command( params.DxO_cmd )
   end
