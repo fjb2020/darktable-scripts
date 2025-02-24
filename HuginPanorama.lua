@@ -92,7 +92,7 @@ script_data.restart = nil -- how to restart the (lib) script after it's been hid
 local GUI = { --GUI Elements Table
   optionwidgets = {
     label_run_options    = {},
-    use_gui              = {},
+    cbo_run_options      = {},
     label_import_options = {},
     group                = {},
     copy_metadata        = {},
@@ -121,6 +121,7 @@ local paths = {
   panoname = '', -- name of final output pano file
   fullpanoname = '',
   blendedname = '',
+  fusedname = '',
   pto_path = '',
 }
 
@@ -223,7 +224,7 @@ local function save_preferences()
   dt.preferences.write( mod, 'copy_metadata', 'bool', GUI.optionwidgets.copy_metadata.value )
   dt.preferences.write( mod, 'copy_tags', 'bool', GUI.optionwidgets.copy_tags.value )
   dt.preferences.write( mod, 'add_tags', 'string', GUI.optionwidgets.add_tags.text )
-  dt.preferences.write( mod, 'use_gui', 'bool', GUI.optionwidgets.use_gui.value)
+  --dt.preferences.write( mod, 'use_gui', 'bool', GUI.optionwidgets.use_gui.value)
   dt.preferences.write( mod, 'copy_exif', 'bool', GUI.optionwidgets.copy_exif.value)
 end
 
@@ -233,7 +234,7 @@ local function load_preferences()
   GUI.optionwidgets.copy_metadata.value = dt.preferences.read( mod, 'copy_metadata', 'bool' )
   GUI.optionwidgets.copy_tags.value = dt.preferences.read( mod, 'copy_tags', 'bool' )
   GUI.optionwidgets.add_tags.text = dt.preferences.read( mod, 'add_tags', 'string')
-  GUI.optionwidgets.use_gui.value = dt.preferences.read(mod, 'use_gui', 'bool' )
+  --GUI.optionwidgets.use_gui.value = dt.preferences.read(mod, 'use_gui', 'bool' )
   GUI.optionwidgets.copy_exif.value = dt.preferences.read(mod, 'copy_exif', 'bool' )
 end
 
@@ -391,6 +392,7 @@ local function hugin_gui(exp_image_list)
     paths.pto_path = settings.stagingfolder ..  os_path_seperator .. paths.lastimagename  .. ' - ' ..  paths.firstimagename .. '.pto'
     paths.panoname = paths.lastimagename  .. ' - ' ..  paths.firstimagename .. '.tif'
     paths.blendedname = settings.stagingfolder .. os_path_seperator .. paths.lastimagename  .. ' - ' ..  paths.firstimagename .. '_blended_fused.tif'
+    paths.fusedname = settings.stagingfolder .. os_path_seperator .. paths.lastimagename  .. ' - ' ..  paths.firstimagename .. '_fused.tif'
     paths.fullpanoname = settings.stagingfolder .. os_path_seperator .. paths.lastimagename  .. ' - ' ..  paths.firstimagename .. '.tif'
   end
   return rv
@@ -466,6 +468,42 @@ local function hugin_headless(exp_image_list,exported_images_table,img_count)
   end
 
 end
+--- ************************************************
+--- Create hdr (tonemapped)
+--- ************************************************ 
+local function create_hdr(exp_image_list,exported_images_table,img_count)
+
+  local rv
+  local project_files = {}
+  local project_file_list = ''
+  for i,exp_file_name in pairs(exported_images_table) do
+    project_files[i] = settings.stagingfolder .. os_path_seperator .. 'aligned' .. string.format("%04d",i-1) .. '.tif'
+  end
+  
+  paths.panoname = paths.lastimagebase .. '-' .. img_count .. '-enfusehdr'
+  paths.fullpanoname = settings.stagingfolder .. os_path_seperator .. paths.panoname .. '.tif'
+ 
+  -- align images
+  local cmdline = settings.hugin_tools .. os_path_seperator .. 'align_image_stack' .. ' -a ' .. os_quote .. settings.stagingfolder .. os_path_seperator .. 'aligned' .. os_quote .. ' ' .. exp_image_list
+  rv = run_app('align_image_stack', cmdline)
+  paths.panoname = paths.panoname .. '.tif'
+
+  -- enfuse
+  cmdline = settings.hugin_tools .. os_path_seperator .. 'enfuse -o ' .. os_quote .. paths.fullpanoname .. os_quote .. ' '
+  for i,filename in pairs(project_files) do
+    cmdline = cmdline .. os_quote .. filename .. os_quote .. ' '
+  end 
+  rv = run_app('enfuse', cmdline)
+
+  -- clean up project files
+  for i,filename in pairs(project_files) do
+    os.remove(filename)
+  end
+  
+
+end
+
+
 
 -- **************************************************************
 -- main function to run Hugin called by Process with Hugin button
@@ -552,6 +590,7 @@ local function run_hugin_Process()
       dt.print_log( 'image.path= '..image.path )
       paths.firstimagepath = df.sanitize_filename( image.path )
       paths.firstimagepath = string.gsub(paths.firstimagepath,"'","")
+      paths.firstimagepath = string.gsub(paths.firstimagepath,'"','')
       paths.firstimagebase= df.get_basename(image.filename)
       paths.firstimagename = df.get_filename(image.filename)
       meta_data.title = image.title
@@ -588,13 +627,16 @@ local function run_hugin_Process()
   end
 
 -- *************************************************
--- create panorama 
+-- process depending on run option selected
 -- *************************************************
-
-  if GUI.optionwidgets.use_gui.value == true then
-    rv = hugin_gui(exp_image_list)
-  else
+  if GUI.optionwidgets.cbo_run_options.selected == 1 then
     rv = hugin_headless(exp_image_list,exported_images_table,img_count)
+  end
+  if GUI.optionwidgets.cbo_run_options.selected == 2 then
+    rv = hugin_gui(exp_image_list)
+  end
+  if GUI.optionwidgets.cbo_run_options.selected == 3 then
+    rv = create_hdr(exp_image_list,exported_images_table,img_count)
   end
 
 -- *************************************************
@@ -605,11 +647,13 @@ local function run_hugin_Process()
   for i,exp_file_name in pairs(exported_images_table) do
     os.remove(exp_file_name)
   end
-  os.remove(paths.pto_path)
+  if paths.pto_path ~= "" then
+    os.remove(paths.pto_path)
+  end
 
   -- EXIF Data    
   exiftool = false
-  if GUI.optionwidgets.copy_exif.value == true  then
+  if GUI.optionwidgets.copy_exif.value == true then
     if settings.exiftool_bin ~= '' then
     -- try to copy exifdata via exiftool if reequested prior to import
       local sourcefile = os_quote .. paths.firstimagepath .. os_path_seperator .. paths.firstimagename .. os_quote
@@ -736,15 +780,17 @@ GUI.optionwidgets.label_run_options = dt.new_widget('section_label'){
   label = _('run options')
 }
 
-GUI.optionwidgets.use_gui = dt.new_widget('check_button') {
-  label = _('use Hugin GUI'),
-  value = false,
-  tooltip = _('Use Hugin GUI - if uncheck process will run hidden'),
-  clicked_callback = function(self)
-    dt.print_log( "use gui: "..tostring( self.value ) )
-  end,
-  reset_callback = function(self) self.value = false end
+
+GUI.optionwidgets.cbo_run_options = dt.new_widget('combobox'){
+  label = _('run options'),
+  tooltip = _('Select required run option'),
+  editable = false,
+  value = 1,
+  "panorama",
+  "panorama using hugin GUI",
+  "tonemapped pseudo-HDR using enfuse"
 }
+
 
 
 GUI.optionwidgets.copy_exif = dt.new_widget('check_button') {
@@ -781,8 +827,10 @@ GUI.optionwidgets.add_tags_box = dt.new_widget('box') {
 
 GUI.options = dt.new_widget('box') {
   orientation = 'vertical',
-  GUI.optionwidgets.label_run_options,
-  GUI.optionwidgets.use_gui,
+  --GUI.optionwidgets.label_run_options,
+  --GUI.optionwidgets.create_hdr,
+  --GUI.optionwidgets.use_gui,
+  GUI.optionwidgets.cbo_run_options,
   GUI.optionwidgets.label_import_options,
   GUI.optionwidgets.group,
   GUI.optionwidgets.copy_metadata,
@@ -846,7 +894,7 @@ local function install_module()
   if not mE.module_installed then
     dt.register_lib( -- register  module
       'HuginProcessor_Lib', -- Module name
-      _('Hugin Panorama'), -- name
+      _('Hugin Processor'), -- name
       true,   -- expandable
       true,   -- resetable
       {[dt.gui.views.lighttable] = {'DT_UI_CONTAINER_PANEL_RIGHT_CENTER', 99}},   -- containers

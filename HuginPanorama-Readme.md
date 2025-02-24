@@ -65,12 +65,27 @@ Require this script from your main lua file
     
 #### Normal Operation
 
-Expand the Hugin Panorama module in lighttable
+Expand the Hugin Process module in lighttable
   
 Select two or more images
 
 Options are as follows:
-  - use Hugin GUI - run hugin via GUI or transparently in the background                    
+
+  - run options
+    Select from
+      panorama - creates panorama from selected images transparently with no user input based on default hugin settings
+               - progress updates are displayed in the message area
+               - if images that don't overlap are selected you will get unpredicatable results
+               - the resultant panorama will be imported into darktable
+      
+      panorama using hugin GUI - exports selected images as tifs and load into hugin GUI
+                               - As part of the panorama creation process you will be asked to save two files
+                               - if the default filenames are changed then the script will not be able to automatically import the resultant panorama, or clear the staging folder
+                              - close Hugin to trigger the import of the resultant panorama into darktable
+      
+      tonemapped pseudo-HDR using enfuse - aligns selected images and runs enfuse to create psuedo-HDR image
+
+
   - group - panorama will be grouped with source images an placed on top of the group
   - copy metadata - metadata from the first source image (per the metadata editor panel) will be applied to the panorama image
   - copy tags - copy keyword tags from first source image to  the panorama image
@@ -79,18 +94,7 @@ Options are as follows:
 
 Select the series images to be merged into a panorama 
 
-Press "Process with Hugin" to create the panorama
-tif versions of the selected images will be exported to the staging folder
-
-If the GUI option is selected, Hugin GUI will open with the selected images loaded ready for aligning and stitching
-  As part of the panorama creation process you will be asked to save two files
-  - if the default filenames are changed then the script will not be able to automatically import the resultant panorama, or clear the staging folder
-  - close Hugin to trigger the import of the resultant panorama into darktable
-
-If unchecked, hugin tools will run in the background to create a panorama based on default settings
-  - progress updates are displayed in the message area
-  - if images that don't overlap are selected you will get unpredicatable results
-  - the resultant panorama will be imported into darktable
+Press "Process with Hugin" to start the process
   
 ### TROUBLESHOOTING
 Check the staging folder is empty

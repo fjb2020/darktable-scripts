@@ -259,9 +259,13 @@ local function stop_job( job )
 end
 -- *************************************************
 local function getfilesize(filename)
-  
+  local thisfilesize
   local thisfile = io.open(filename,'r')
-  local thisfilesize = thisfile:seek("end")
+  if thisfile then
+    thisfilesize = thisfile:seek("end")
+  else
+    thisfilesize = 0
+  end
   io.close(thisfile)
   return thisfilesize
 
@@ -474,13 +478,14 @@ local function import_DxO(this_dxo_image,this_raw_img,move_DxO)
     end
   end
 
-
+  --dt.print_log("DxO file is " .. this_dxo_image)
   local imported_image = dt.database.import(this_dxo_image)
   -- images already in the database will have any sidecar files re-read 
   if imported_image == nil then
     dt.print_error("Failed to import " .. this_dxo_image)
     return false
   end
+  --dt.print_log("Imported " .. imported_image.path .. "/" .. imported_image.filename)
   if GUI.optionwidgets.copy_tags.value == true then
     -- copy tags except 'darktable' tags
     local raw_tags = dt.tags.get_tags(this_raw_img)
@@ -575,6 +580,7 @@ local function start_processing()
     return
   end
   -- Import processed images into darktable
+  local move_DxO
   for ii = 1, params.img_count do
   --for ii,this_raw_img in pairs(params.img_table) do
     local this_raw_img = params.opfile_table[ii][1]
@@ -582,7 +588,7 @@ local function start_processing()
     dt.print_log("Post processing " .. this_raw_img.filename)
     if params.DxO_version == '3' then
       -- look for DxO images based on known extensions
-      local move_DxO = false
+      move_DxO = false
       local this_dxo_image_base = (df.chop_filetype(this_raw_img.path .. os_path_seperator .. this_raw_img.filename)) .. "-" .. img_type
       for jj = 1, #params.DxO_extensions do
         local this_dxo_image = sanitize_filename(this_dxo_image_base .. params.DxO_extensions[jj])
@@ -591,10 +597,10 @@ local function start_processing()
         end 
       end
     else
-      local move_DxO = true
+      move_DxO = true
       for jj = 2,3 do
         local this_dxo_image = params.opfile_table[ii][jj]
-        if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. this_dxo_image) then
+          if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. this_dxo_image) then
           rv = import_DxO(this_dxo_image,this_raw_img,move_DxO)
         end
       end

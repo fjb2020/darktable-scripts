@@ -119,23 +119,19 @@ end
 
 du.check_min_api_version("7.0.0", "ZereneStacker")
 
-local script_data = {}
 -- return data structure for script_manager
-
 local script_data = {}
-
 script_data.metadata = {
   name = "ZereneStacker",
   purpose = "Create focus stack using Zerene Stacker",
   author = "Fiona Boston <fiona@fbphotography.uk>",
   help = "https://github.com/fjb2020/darktable-scripts"
 }
-local temp
-
 script_data.destroy = nil -- function to destory the script
 script_data.destroy_method = nil -- set to hide for libs since we can't destroy them commpletely yet, otherwise leave as nil
 script_data.restart = nil -- how to restart the (lib) script after it's been hidden - i.e. make it visible again
 
+local temp
 local GUI = { --GUI Elements Table
   optionwidgets = {
     label_import_options = {},
@@ -279,7 +275,7 @@ local function build_zerene_commandline(zerene_staging_fldr)
 
   local zerene_licfldr = df.sanitize_filename(dt.preferences.read( mod, "ZereneLicFolder", "string" ) )
   -- remove single quotes from folder name
-  zerene_licfolder =  string.gsub(zerene_licfldr,"'","")
+  local zerene_licfolder =  string.gsub(zerene_licfldr,"'","")
 
   -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi 
 
@@ -340,12 +336,12 @@ local function start_stacking()
 
   save_preferences()
 
-  images = dt.gui.selection() --get selected images
+  local images = dt.gui.selection() --get selected images
 
   -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
   local jobdesc = _"exporting " .. #images .. " images to Zerene Stacker..."
   dt.print_log ('jobdesc is ' .. jobdesc)
-  job = dt.gui.create_job( jobdesc, true, stop_job )
+  local job = dt.gui.create_job( jobdesc, true, stop_job )
 
   
   if #images < 2 then --ensure enough images selected
@@ -457,7 +453,7 @@ local function start_stacking()
   dt.print_log( 'commandline: '..zerene_commandline )
   local zerene_start_time = os.date("*t",os.time())
   dt.print_log("Zerene Started " .. zerene_start_time.hour ..":" .. zerene_start_time.min .. ":" .. zerene_start_time.sec)
-
+  local resp
   if dt.configuration.running_os == 'windows' then 
     resp = dsys.windows_command( zerene_commandline)
   else
