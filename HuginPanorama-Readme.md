@@ -72,6 +72,7 @@ Select two or more images
 Options are as follows:
 
   - run options
+    
     Select from
       panorama - creates panorama from selected images transparently with no user input based on default hugin settings
                - progress updates are displayed in the message area
