@@ -27,7 +27,7 @@ Plesae see separate README DxO_PureRAW-Readme.md for details on using the script
 
 Create panorama using Hugin and Hugin tools 
 
-Please see separate README HuginPanorama-Readne.md for details on using the script
+Please see separate README HuginPanorama-Readme.md for details on using the script
 
  
 ### ZereneStacker
