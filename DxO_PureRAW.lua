@@ -138,11 +138,10 @@ if scriptfile ~= nil and scriptfile.source ~= nil then
   local path = scriptfile.source:match( "[^@].*[/\\]" )
   localedir = path..os_path_seperator..'locale'
 end
-dt.print_log( "localedir: "..localedir )
+--dt.print_log( "localedir: "..localedir )
 gettext.bindtextdomain( 'DxO_pureRAW', localedir )
 
-local DxO3_job
-local DxO4_job
+local DxO_job
 local cancel_pressed = false
 
 -- declare a local namespace and a couple of variables we'll need to install the module
@@ -170,11 +169,11 @@ end
 local function Get_DxO_app()
 
   params.DxO_exec = df.sanitize_filename( dt.preferences.read( mod, "DxO_pureRAWExe", "string" ) )
-  dt.print_log("DxO_exec is " .. params.DxO_exec)
+  --dt.print_log("DxO_exec is " .. params.DxO_exec)
 
   if dt.configuration.running_os == 'macos' then
     if df.test_file(params.DxO_exec,"e") then
-      dt.print_log("Found " .. params.DxO_exec)
+      --dt.print_log("Found " .. params.DxO_exec)
     else
       dt.print("Cannot find " .. params.DxO_exec .. "  - Please check DxO_pureRAW executable in Lua options ...")
       return false
@@ -299,7 +298,7 @@ local function run_pureRAW_v3()
     -- PureRAW version 3 terminates on completion of processing so we can easily detect when it's complete
   
     -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-    DxO3_job = dt.gui.create_job( _"Running DxO_pureRAW v3 ...", true, stop_job )
+    DxO_job = dt.gui.create_job( _"Running DxO_pureRAW v3 ...", true, stop_job )
 
     if dt.configuration.running_os == "macos" then
       params.DxO_cmd = "open -W -a " .. params.DxO_cmd
@@ -319,16 +318,16 @@ local function run_pureRAW_v3()
     if resp ~= 0 then
       --dt.print_log( 'DxO_pureRAW returned '..tostring( resp ) )
       dt.print( _'could not start DxO_pureRAW application - is it set correctly in Lua Options?' )
-      if(DxO3_job.valid) then
-        DxO3_job.valid = false
+      if(DxO_job.valid) then
+        DxO_job.valid = false
       end
       return false
     end
     
     local dxo_end_time = os.date("*t",os.time())
     -- dt.print_log("DxO Finihsed " .. dxo_end_time.hour ..":" .. dxo_end_time.min .. ":" .. dxo_end_time.sec)
-    if(DxO3_job.valid) then
-      DxO3_job.valid = false
+    if(DxO_job.valid) then
+      DxO_job.valid = false
     end
     return true
 end
@@ -380,7 +379,7 @@ local function run_pureRAW_v4()
     end
   end
       -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  DxO4_job = dt.gui.create_job( _"Running DxO_pureRAW v4 ...", true, stop_job )
+  DxO_job = dt.gui.create_job( _"Running DxO_pureRAW v4 ...", true, stop_job )
 
   if dt.configuration.running_os == "macos" then
     -- open without -w (wait) option so control will come back immediately
@@ -399,8 +398,8 @@ local function run_pureRAW_v4()
   else
     resp = dsys.external_command( params.DxO_cmd )
   end
-  if DxO4_job.valid then
-    DxO4_job.valid = false
+  if DxO_job.valid then
+    DxO_job.valid = false
   end
   -- now wait for output files to be created
   -- We assume that the DxO staging folder has been selected as the output folder in pureRAW 4
@@ -409,10 +408,12 @@ local function run_pureRAW_v4()
   local processed_images = 0
   local DxO_complete = false
   local dxo_start_time = os.time()
-  DxO4_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 ...", true, stop_job )
+  DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 ...", true, stop_job )
   while not DxO_complete do
     if cancel_pressed then
-      DxO4_job.valid = false
+      if(DxO_job.valid) then
+        DxO_job.valid = false
+      end
       cleanup_DxO4()
       cancel_pressed = false
       return false
@@ -420,14 +421,18 @@ local function run_pureRAW_v4()
 
     -- stop processing if 'stopjob; file is createad in stagingfolder'
     if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. "stopjob") then
-      DxO4_job.valid = false
+      if(DxO_job.valid) then
+        DxO_job.valid = false
+      end
       return false
     end
 
     local dxo_current_time = os.time()
     -- dt.print_log("Total wait is " .. os.difftime(dxo_current_time,dxo_start_time) .. " seconds")
-    DxO4_job.valid = false
-    DxO4_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
+    if(DxO_job.valid) then
+      DxO_job.valid = false
+    end
+    DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
     -- wait 5 seconds then see if images are ready
     sleep(5)
     
@@ -477,7 +482,9 @@ local function run_pureRAW_v4()
   end
 
 
-  DxO4_job.valid = false
+  if(DxO_job.valid) then
+    DxO_job.valid = false
+  end
   return true
 
 end
@@ -488,7 +495,7 @@ end
 -- ************************************************
 local function import_DxO(this_dxo_image,this_raw_img,move_DxO)
 
-  dt.print_log("Found " ..  this_dxo_image)
+  --dt.print_log("Found " ..  this_dxo_image)
   if move_DxO then
     -- move Dxo Image to same directory as raw image
     -- use df.create_unique_file in case f DxO filename already exists in source folder
@@ -577,7 +584,7 @@ local function start_processing()
   --local today = os.date("*t")
   --local opfile_prefix = today.year .. string.format("%02d",today.month) .. string.format( "%02d",today.day)
 
-  for i,raw_img in pairs(images) do
+    for i,raw_img in pairs(images) do
     -- appeand this raw image to string of images to be sent to DxO_PureRAW
     params.img_list = params.img_list .. '"' ..  raw_img.path  .. os_path_seperator .. raw_img.filename .. '" '
     table.insert(params.img_table,raw_img)
@@ -612,11 +619,57 @@ local function start_processing()
   end
   -- Import processed images into darktable
   local move_DxO
-  for ii = 1, params.img_count do
+
   
+
+
+  for ii = 1, params.img_count do
+
+    --if(DxO_job.valid) then
+    --  DxO_job.valid = false
+    --end
+    --DxO_job = dt.gui.create_job( _"Importing " .. ii .. " of " .. params.img_count .. " images ", true, stop_job   )
+    --[[
+    darktable(17271,0x3e1d27000) malloc: *** error for object 0x1048ba960: pointer being freed was not allocated
+darktable(17271,0x3e1d27000) malloc: *** set a breakpoint in malloc_error_break to debug
+    -------------------------------------
+Translated Report (Full Report Below)
+-------------------------------------
+
+Process:               darktable [17271]
+Path:                  /Applications/darktable.app/Contents/MacOS/darktable
+Identifier:            org.darktable
+Version:               5.1.0 (5.1.0.473)
+Code Type:             ARM-64 (Native)
+Parent Process:        zsh [12074]
+Responsible:           iTerm2 [3367]
+User ID:               501
+
+Date/Time:             2025-04-03 16:33:27.6382 +0100
+OS Version:            macOS 15.4 (24E248)
+Report Version:        12
+Anonymous UUID:        D83FD122-70DB-45F5-1958-F54BD26F927C
+
+
+Time Awake Since Boot: 28000 seconds
+
+System Integrity Protection: enabled
+
+Crashed Thread:        105  pool-15
+
+Exception Type:        EXC_CRASH (SIGABRT)
+Exception Codes:       0x0000000000000000, 0x0000000000000000
+
+Termination Reason:    Namespace SIGNAL, Code 6 Abort trap: 6
+Terminating Process:   darktable [17271]
+
+Application Specific Information:
+abort() called
+    ]]
+    
     local this_raw_img = params.opfile_table[ii][1]
     local img_type = string.sub(this_raw_img.filename,-3)
-    -- dt.print_log("Post processing " .. this_raw_img.filename)
+    --dt.print_log("Post processing " .. this_raw_img.filename)
     if params.DxO_version == '3' then
       -- look for DxO images based on known extensions
       move_DxO = false
@@ -636,7 +689,10 @@ local function start_processing()
         end
       end
     end
-   end
+  end
+  --if(DxO_job.valid) then
+  --  DxO_job.valid = false
+  --end
 end
 
 
