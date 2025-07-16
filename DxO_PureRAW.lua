@@ -190,8 +190,11 @@ local function Get_DxO_app()
   if params.DxO_exec:find("3") then
     params.DxO_version = '3'
   end
-  if params.DxO_exec:find("4") then
+  if params.DxO_exec:find("4") or params.DxO_exec:find("5") then
     params.DxO_version = '4'
+    if params.DxO_exec:find("5") then
+       params.DxO_version = '5'
+    end
     params.DxO_staging = df.sanitize_filename( dt.preferences.read( mod, "DxOStagingFolder", "string" ) )
     -- remove single quotes from folder name
     params.DxO_staging = string.gsub(params.DxO_staging,"'","")
@@ -351,7 +354,7 @@ end
 -- ************************************************
 -- Run DxO_pureRAW v4
 
-local function run_pureRAW_v4()
+local function run_pureRAW_v45()
 --[[
 
     PureRAW version 4 continues to run in the background on completion of processing 
@@ -390,8 +393,9 @@ local function run_pureRAW_v4()
     params.DxO_cmd = "start " .. '"Run DxO pureRAW 4"' .. " " .. params.DxO_cmd
   end
   params.DxO_cmd = params.DxO_cmd .. " " .. params.img_list
-  -- dt.print_log( 'commandline: ' .. params.DxO_cmd )
+  dt.print_log( 'commandline: ' .. params.DxO_cmd )
   dt.print( 'Activating DxO_pureRAW ...')
+  
   local resp
   if dt.configuration.running_os == 'windows' then
     resp = dsys.windows_command( params.DxO_cmd )
@@ -402,13 +406,13 @@ local function run_pureRAW_v4()
     DxO_job.valid = false
   end
   -- now wait for output files to be created
-  -- We assume that the DxO staging folder has been selected as the output folder in pureRAW 4
+  -- We assume that the DxO staging folder has been selected as the output folder in pureRAW 4/5
   -- we also assume that the filename format will be imagebase-processmode.dng - maybe will parameterise this in future
   --
   local processed_images = 0
   local DxO_complete = false
   local dxo_start_time = os.time()
-  DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 ...", true, stop_job )
+  DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW " .. params.DxO_version .. " ...", true, stop_job )
   while not DxO_complete do
     if cancel_pressed then
       if(DxO_job.valid) then
@@ -432,18 +436,18 @@ local function run_pureRAW_v4()
     if(DxO_job.valid) then
       DxO_job.valid = false
     end
-    DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW v4 - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
+    DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW " .. params.DxO_version .. " - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
     -- wait 5 seconds then see if images are ready
     sleep(5)
     
     for i = 1, params.img_count do
       if params.opfile_table[i][4] == false then
           local checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][2]
-          --dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
+          dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
           local rv = check_DxO_processed(checkfile)
           if not(rv) then
             checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][3]
-            --dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
+            dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
             rv = check_DxO_processed(checkfile)
             params.opfile_table[i][4] = rv
           else
@@ -590,19 +594,25 @@ local function start_processing()
     table.insert(params.img_table,raw_img)
     params.opfile_table[i] = {}
     params.opfile_table[i][1] = raw_img
-    if params.DxO_version == '4' then
+    if params.DxO_version == '4' or params.DxO_version == '5' then
       -- build list of expected files to be created by DxO 4
       
       -- We assume that DxO will use the same folder as the source image 
       -- we also assume that the filename format will be yyyymmyy-imagebase.dng 
       -- maybe will parameterise these in future
       local thisname1 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME.dng'
-      local thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s.dng'
+      local thisname2 = ''
+      if params.DxO_version == '4' then 
+        thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s.dng'
+      else
+        thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s_XD.dng'
+      end
       -- dt.print_log("Output file " .. i .. ' is ' .. thisname1 .. ", " .. thisname2)
       params.opfile_table[i][2] = thisname1
       params.opfile_table[i][3] = thisname2
       params.opfile_table[i][4] = false -- flag to indicate file has been processed by DxO_PureRAW and is ready to import
-    end
+    end    
+
   end
 
 -- Run process dependent on DxO verion
@@ -610,8 +620,8 @@ local function start_processing()
     rv = run_pureRAW_v3()
   end
 
-  if params.DxO_version == '4' then
-    rv = run_pureRAW_v4()
+  if params.DxO_version == '4' or params.DxO_version == '5' then
+    rv = run_pureRAW_v45()
   end
 
   if not(rv) then
@@ -625,47 +635,11 @@ local function start_processing()
 
   for ii = 1, params.img_count do
 
-    --if(DxO_job.valid) then
-    --  DxO_job.valid = false
-    --end
-    --DxO_job = dt.gui.create_job( _"Importing " .. ii .. " of " .. params.img_count .. " images ", true, stop_job   )
-    --[[
-    darktable(17271,0x3e1d27000) malloc: *** error for object 0x1048ba960: pointer being freed was not allocated
-darktable(17271,0x3e1d27000) malloc: *** set a breakpoint in malloc_error_break to debug
-    -------------------------------------
-Translated Report (Full Report Below)
--------------------------------------
+    if(DxO_job.valid) then
+      DxO_job.valid = false
+    end
+    DxO_job = dt.gui.create_job( _"Importing " .. ii .. " of " .. params.img_count .. " images ", true, stop_job   )
 
-Process:               darktable [17271]
-Path:                  /Applications/darktable.app/Contents/MacOS/darktable
-Identifier:            org.darktable
-Version:               5.1.0 (5.1.0.473)
-Code Type:             ARM-64 (Native)
-Parent Process:        zsh [12074]
-Responsible:           iTerm2 [3367]
-User ID:               501
-
-Date/Time:             2025-04-03 16:33:27.6382 +0100
-OS Version:            macOS 15.4 (24E248)
-Report Version:        12
-Anonymous UUID:        D83FD122-70DB-45F5-1958-F54BD26F927C
-
-
-Time Awake Since Boot: 28000 seconds
-
-System Integrity Protection: enabled
-
-Crashed Thread:        105  pool-15
-
-Exception Type:        EXC_CRASH (SIGABRT)
-Exception Codes:       0x0000000000000000, 0x0000000000000000
-
-Termination Reason:    Namespace SIGNAL, Code 6 Abort trap: 6
-Terminating Process:   darktable [17271]
-
-Application Specific Information:
-abort() called
-    ]]
     
     local this_raw_img = params.opfile_table[ii][1]
     local img_type = string.sub(this_raw_img.filename,-3)
@@ -690,9 +664,9 @@ abort() called
       end
     end
   end
-  --if(DxO_job.valid) then
-  --  DxO_job.valid = false
-  --end
+  if(DxO_job.valid) then
+    DxO_job.valid = false
+  end
 end
 
 
@@ -798,8 +772,8 @@ dt.preferences.register(
   mod, -- script
   "DxOTimeout",	-- name
 	"string",	-- type
-  _('DxO 4 Timeout (mins 0 - 30)'),	-- label
-	_('Set the max time in minutes (0 - 30) allowed per image for processing by DxO 4'),	-- tooltip
+  _('DxO 4/5 Timeout (mins 0 - 30)'),	-- label
+	_('Set the max time in minutes (0 - 30) allowed per image for processing by DxO 4 or 5'),	-- tooltip
   "2" -- default,
 )
 
@@ -807,8 +781,8 @@ dt.preferences.register(
   mod, -- script
   "DxOStagingFolder",	-- name
 	"directory",	-- type
-  _('DxO 4 Staging Folder'),	-- label
-	_('Select the staging folder used by DxO 4'),	-- tooltip
+  _('DxO 4/5 Staging Folder'),	-- label
+	_('Select the staging folder used by DxO 4 or 5'),	-- tooltip
   "5" -- default,
 )
 
