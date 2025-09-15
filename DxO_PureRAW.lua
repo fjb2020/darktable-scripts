@@ -212,7 +212,7 @@ local function Get_DxO_app()
   if params.DxO_version == '3' then
     params.DxO_extensions = {"_DxO_DeepPRIMEXD.dng","_DxO_DeepPRIME.dng","_DxO_DeepPRIMEXD.tif","_DxO_DeepPRIME.tif","_DxO_DeepPRIMEXD.jpg","_DxO_DeepPRIME.jpg"}
   else
-    params.DxO_extensions = {""}
+    params.DxO_extensions = {"-DxO_DeepPRIMEXD.dng","-DxO_DeepPRIME.dng","-DxO_DeepPRIME XD2s.dng","-DxO_DeepPRIME XD2s_XD.dng","-DxO_DeepPRIME XD3 X-Trans.dng"}
   end
   params.DxO_cmd = params.DxO_exec
   return true
@@ -341,18 +341,20 @@ local function cleanup_DxO4()
   -- process has been cancelled
 
   for i = 1, params.img_count do
-    local checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][2]
-    dt.print_log("Checking " .. checkfile)
-    if df.check_if_file_exists(checkfile) then
-      -- this will remove any files processed so far, but as DxO processing itself isn't being cancelled there may be other files created after this script stops.
-        os.remove(checkfile)
+    if params.opfile_table[i][2] then
+      local checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][2]
+      --dt.print_log("Checking " .. checkfile)
+      if df.check_if_file_exists(checkfile) then
+        -- this will remove any files processed so far, but as DxO processing itself isn't being cancelled there may be other files created after this script stops.
+          os.remove(checkfile)
+      end
     end
   end
 
 end
 
 -- ************************************************
--- Run DxO_pureRAW v4
+-- Run DxO_pureRAW v4/5
 
 local function run_pureRAW_v45()
 --[[
@@ -437,22 +439,24 @@ local function run_pureRAW_v45()
       DxO_job.valid = false
     end
     DxO_job = dt.gui.create_job( _"Waiting for DxO_pureRAW " .. params.DxO_version .. " - " .. processed_images .. " of " .. params.img_count .. " processed, " .. string.format("%d",os.difftime(dxo_current_time,dxo_start_time)) .. " seconds", true, stop_job   )
-    -- wait 5 seconds then see if images are ready
-    sleep(5)
+    -- wait 10 seconds then see if images are ready
+    sleep(10)
     
     for i = 1, params.img_count do
       if params.opfile_table[i][4] == false then
-          local checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][2]
+        local foundOpFile = false
+        for p = 1, #params.DxO_extensions do
+          local checkfile = df.get_basename(params.opfile_table[i][1].filename) .. params.DxO_extensions[p]
           dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
-          local rv = check_DxO_processed(checkfile)
-          if not(rv) then
-            checkfile = params.DxO_staging .. os_path_seperator .. params.opfile_table[i][3]
-            dt.print_log("checking for " .. checkfile .. ' from ' .. params.opfile_table[i][1].filename)
-            rv = check_DxO_processed(checkfile)
+          local rv = check_DxO_processed(params.DxO_staging .. os_path_seperator .. checkfile)
+          if rv then
+            params.opfile_table[i][2] =  checkfile
             params.opfile_table[i][4] = rv
-          else
-            params.opfile_table[i][4] = rv
+            foundOpFile = true
+            dt.print_log("Found " .. checkfile)
+            break
           end
+        end
       end
     end
 
@@ -588,39 +592,21 @@ local function start_processing()
   --local today = os.date("*t")
   --local opfile_prefix = today.year .. string.format("%02d",today.month) .. string.format( "%02d",today.day)
 
-    for i,raw_img in pairs(images) do
+  for i,raw_img in pairs(images) do
     -- appeand this raw image to string of images to be sent to DxO_PureRAW
     params.img_list = params.img_list .. '"' ..  raw_img.path  .. os_path_seperator .. raw_img.filename .. '" '
     table.insert(params.img_table,raw_img)
     params.opfile_table[i] = {}
     params.opfile_table[i][1] = raw_img
-    if params.DxO_version == '4' or params.DxO_version == '5' then
-      -- build list of expected files to be created by DxO 4
-      
-      -- We assume that DxO will use the same folder as the source image 
-      -- we also assume that the filename format will be yyyymmyy-imagebase.dng 
-      -- maybe will parameterise these in future
-      local thisname1 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME.dng'
-      local thisname2 = ''
-      if params.DxO_version == '4' then 
-        thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s.dng'
-      else
-        thisname2 = df.get_basename(raw_img.filename) .. '-DxO_DeepPRIME XD2s_XD.dng'
-      end
-      -- dt.print_log("Output file " .. i .. ' is ' .. thisname1 .. ", " .. thisname2)
-      params.opfile_table[i][2] = thisname1
-      params.opfile_table[i][3] = thisname2
-      params.opfile_table[i][4] = false -- flag to indicate file has been processed by DxO_PureRAW and is ready to import
-    end    
+    params.opfile_table[i][4] = false -- flag to indicate file has been processed by DxO_PureRAW and is ready to import
+
 
   end
 
 -- Run process dependent on DxO verion
   if params.DxO_version == '3' then
     rv = run_pureRAW_v3()
-  end
-
-  if params.DxO_version == '4' or params.DxO_version == '5' then
+  else
     rv = run_pureRAW_v45()
   end
 
@@ -656,11 +642,10 @@ local function start_processing()
       end
     else
       move_DxO = true
-      for jj = 2,3 do
-        local this_dxo_image = params.opfile_table[ii][jj]
-        if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. this_dxo_image) then
-          rv = import_DxO(this_dxo_image,this_raw_img,move_DxO)
-        end
+      local this_dxo_image = params.opfile_table[ii][2]
+      dt.print_log("Importing - " .. this_dxo_image)
+      if df.check_if_file_exists(params.DxO_staging .. os_path_seperator .. this_dxo_image) then
+        rv = import_DxO(this_dxo_image,this_raw_img,move_DxO)
       end
     end
   end
