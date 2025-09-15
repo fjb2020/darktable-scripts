@@ -167,7 +167,7 @@ local function export_image( image, exportfilename)
 
   local curr_image = image.path..os_path_seperator..image.filename
 
-  dt.print_log( "exporting "..curr_image )
+  --dt.print_log( "exporting "..curr_image )
 
   local exporter = dt.new_format("tiff")
   exporter.bpp = 16
@@ -182,7 +182,7 @@ local function copy_tags( all_tags, image )
   local image_tags = dt.tags.get_tags( image )
     for _,tag in pairs( image_tags ) do
       if string.match( tag.name, 'darktable|' ) == nil then
-        dt.print_log( "image: "..image.filename .. "  tag: "..tag.name )
+        --dt.print_log( "image: "..image.filename .. "  tag: "..tag.name )
         all_tags[ #all_tags + 1 ] = tag
       end
     end
@@ -194,7 +194,7 @@ end
 local function insert_tags( image, tags )
   for _,tag in pairs( tags ) do
     dt.tags.attach(tag, image )
-    dt.print_log( 'image: '..image.filename..'  adding tag ', tag.name )
+    --dt.print_log( 'image: '..image.filename..'  adding tag ', tag.name )
   end
 end
 
