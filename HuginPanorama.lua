@@ -732,6 +732,7 @@ local function run_hugin_Process()
 --- *************************************************
 --- End of Function run_hugin_Process()
 --- *************************************************
+
 end
 
 
