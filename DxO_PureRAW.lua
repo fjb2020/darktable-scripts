@@ -212,7 +212,7 @@ local function Get_DxO_app()
   if params.DxO_version == '3' then
     params.DxO_extensions = {"_DxO_DeepPRIMEXD.dng","_DxO_DeepPRIME.dng","_DxO_DeepPRIMEXD.tif","_DxO_DeepPRIME.tif","_DxO_DeepPRIMEXD.jpg","_DxO_DeepPRIME.jpg"}
   else
-    params.DxO_extensions = {"-DxO_DeepPRIMEXD.dng","-DxO_DeepPRIME.dng","-DxO_DeepPRIME XD2s.dng","-DxO_DeepPRIME XD2s_XD.dng","-DxO_DeepPRIME XD3 X-Trans.dng"}
+    params.DxO_extensions = {"-DxO_DeepPRIMEXD.dng","-DxO_DeepPRIME.dng","-DxO_DeepPRIME XD2s.dng","-DxO_DeepPRIME XD2s_XD.dng","-DxO_DeepPRIME XD3 X-Trans.dng","-DxO_DeepPRIME 3.dng"}
   end
   params.DxO_cmd = params.DxO_exec
   return true

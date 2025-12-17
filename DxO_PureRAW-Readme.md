@@ -29,12 +29,12 @@ Prior to first run, specify the following in Lua options:
             version 3 /Applications/DxO PureRAW 3
             version 4 /Applications/DxO PureRAW 4
 
-    DxO 4 Staging Folder (ignore this setting if you have version 3)
-        A folder to be used by pureRAW 4 for temporary storage 
+    DxO 4/5 Staging Folder (ignore this setting if you have version 3)
+        A folder to be used by pureRAW 4 or 5 for temporary storage 
         of the processed files
     
-    DxO 4 Timeout
-        Set the maximum time in minutes the script should wait for pureRAW 4
+    DxO 4/5 Timeout
+        Set the maximum time in minutes the script should wait for pureRAW 4 or 5
         to process an image. If not set a default of 2 minutes seconds will be used. 
         A range of 0 to 30 is allowed. 
         See notes below for an explanation of this parameter 
@@ -63,8 +63,8 @@ Process Settings should be as follows:
         x  Original image(s) folder
 
 
-    Version 4
-    =========
+    Version 4 / 5
+    =============
         ----------------------------------------
         Corrections 
             set as required
@@ -98,7 +98,7 @@ This script was tested using using the following platforms:
 
 - darktable 4.8.0 and above
 
-- DxO PureRAW 3 and 4.6+
+- DxO PureRAW 3 and 4.6 and above
 
 ### Notes
 Notes on the operation of the script
@@ -107,9 +107,9 @@ When first written I was using DxO pureRAW version 3, and it's operation for thi
 
 Build a command line to run pureRAW with the selected images appended, and tell darktable to run this command, then wait for it to close. Darktable will then locate the new processed images created by pureRAW and import them, optionally grouping, tagging and adding metadate per the options selected.
 
-Version 4 operates quite differently in that it is always running - minimised in the menubar / system tray when not active, or with a visible window when processing images. This change means the approach I used for version 3 doesn't work as the script couldn't detect when image processing had completed. 
+Version 4 and 5 operates quite differently on macOS in that it is always running - minimised in the menubar / system tray when not active, or with a visible window when processing images. This change means the approach I used for version 3 doesn't work as the script couldn't detect when image processing had completed. 
 
-The updated script now launches version 4 but doesn't wait for it to close as this won't happen unless closed in the menubar/system tray - instead it waits for the expected processed images to appear in a specified directory. 
+The updated script now launches version 4/5 but doesn't wait for it to close as this won't happen unless closed in the menubar/system tray - instead it waits for the expected processed images to appear in a specified directory. 
 
 Once these images are all present they are moved to the source image folder and imported from there. 
 
