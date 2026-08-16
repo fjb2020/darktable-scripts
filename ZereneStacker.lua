@@ -280,7 +280,9 @@ local function build_zerene_commandline(zerene_staging_fldr)
   -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi 
 
   if dt.configuration.running_os == 'macos' then
-    zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+    -- zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+    zerene_commandline = '"' .. zerene_java_folder  .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+    
       .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
       .. ' -Xdock:name="ZereneStacker" -Xdock:icon="' .. zerene_java_folder .. '/../ZereneEurydice.icns"' .. ' -Dapple.laf.useScreenMenuBar=true' -- Settings to integrate in to apple dock etc                            
       .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
@@ -434,7 +436,18 @@ local function start_stacking()
       dt.print_log( _"exporting images canceled!")
       return
     end
+--[[
 
+  -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
+  local jobdesc = _"exporting " .. #images .. " images to Zerene Stacker..."
+  dt.print_log ('jobdesc is ' .. jobdesc)
+  local job = dt.gui.create_job( jobdesc, true, stop_job )
+    if(job.valid) then
+      job.valid = false
+    end
+    job = dt.gui.create_job( _"Exporting " .. ii .. " of " .. params.img_count .. " images ", true, stop_job   )
+
+]]
     -- update progress_bar
     job.percent = i / #images
 

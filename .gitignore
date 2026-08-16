@@ -25,3 +25,4 @@ output*png
 Brewfile.lock.json
 CMakeLists.txt.user
 workspace/
+*.sh    
