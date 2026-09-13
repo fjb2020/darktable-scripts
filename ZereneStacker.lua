@@ -30,7 +30,7 @@ you must have Zerene Stacker (commercial software) installed on your system.
 
 
 PRIOR TO FIRST RUN
-Create an empty folder to be used as the Stacker Staging Folder. 
+Create an empty folder to be used as the Stacker Staging Folder.
 This folder will be used to store exported images prior to stacking and the output from Zerene Stacker prior to importing to DT.
 It will also hold the ZereneBatch.xml batch script file.
 All images should be removed from this folder once this script completes.
@@ -40,18 +40,18 @@ This lua script assumes that the batch script file is named ZereneBatch.xml and 
 A sample batch script is included on the web page above which performs simple stacking tasks suitable for this script. Copy this XML
 into a new file and save as ZereneBatch.xml in the Staging Folder. This should be the only file in the folder (the script may not run if other
 files are present). Details of how to make more sophisticated batch scipts are on the Zerene web site, and the Zerene Stacker application
-can be used to create very complex scripts that can be used instead of the above. 
+can be used to create very complex scripts that can be used instead of the above.
 
 USAGE
 * Complete the details in darktable global options -> Lua Options:
 
   * Set the following parameters in Lua options:
   *   Stacker Staging Folder - folder created in above step
-  *   Zerene Licence Folder - folder where LicenceKey.txt is stored 
+  *   Zerene Licence Folder - folder where LicenceKey.txt is stored
           (try  /Users/myusername/Library/Preferences/ZereneStacker on a Mac
                 c:\Program Files\ZereneStacker on Windows
                 /home/myusername/.ZereneStacker on Linux)
-  *   Zerene Stacker Java Folder = folder where ZereneStacker.jar file is held  
+  *   Zerene Stacker Java Folder = folder where ZereneStacker.jar file is held
           (try  /Applications/ZereneStacker.app/Contents/Resources/Java on a Mac
                 c:\Program Files\ZereneStacker on Windows
                 top level directory of Zerene installation location on linux)
@@ -64,12 +64,12 @@ USAGE
 * 'copy tags': If checked, all tags from all source images are copied to the resulting image
 * 'new tags': Enter a comma seperated list of tags that shall be added to the resulting image on import.
 * 'stack with Zerene Stacker': Press this button to start export of tifs and then start Zerene Stacker application
-* 
+*
 * The selected images will be exported to .tif files in the Stacler Staging Folder
 * Zerene will launch and process the images per the ZereneBatch.xml script
 * Once the batch processing is complete a dialog will pop - click OK to acknowledge.
 * Zerene Stacker will stay open to allow retouching - ensure the output files(s) are resaved if changes are made
-* Close Zerene Stacker after saving to start the import of the resulting image(s). 
+* Close Zerene Stacker after saving to start the import of the resulting image(s).
 *
 *** NOTE - The script may fail if the default output filenames are altered. ***
 *
@@ -81,7 +81,7 @@ This script was tested on the following platforms:
   - darktable 4.8.1 and above on:
     - macOS on Apple Silcon
     - Windows 11 ARM running in a VM on Apple Silicon
-    - Linux - Ubuntu LXQt 24.01.1 LTS running on amd64 
+    - Linux - Ubuntu LXQt 24.01.1 LTS running on amd64
 
 BUGS, COMMENTS, SUGGESTIONS
     * Send to Fiona Boston, fiona@fbphotography.uk
@@ -98,19 +98,11 @@ local df = require 'lib/dtutils.file'
 local dsys = require 'lib/dtutils.system'
 
 -- lua libraries installed via luarocks https://github.com/luarocks/luarocks/wiki
--- luafilesystem - https://lunarmodules.github.io/luafilesystem/index.html - file system functions
--- additional validation and output checking is activated if lfs is present
-local lfs_loaded,lfs = pcall(require,'lfs')
-if lfs_loaded == false then
-  dt.print_log("No lfs module")
-else
-  dt.print_log("lfs module found")
-end
 
 
 -- luaexpat - https://lunarmodules.github.io/luaexpat/index.html - XML Expat parsing
 -- not currently used but future enhancement around chcking ZereneBatch.xml may require it
-local xml_loaded,lxp = pcall(require,'lxp')
+local xml_loaded, lxp = pcall(require, 'lxp')
 if xml_loaded == true then
   dt.print_log("lxp module found")
 else
@@ -127,9 +119,9 @@ script_data.metadata = {
   author = "Fiona Boston <fiona@fbphotography.uk>",
   help = "https://github.com/fjb2020/darktable-scripts"
 }
-script_data.destroy = nil -- function to destory the script
+script_data.destroy = nil        -- function to destory the script
 script_data.destroy_method = nil -- set to hide for libs since we can't destroy them commpletely yet, otherwise leave as nil
-script_data.restart = nil -- how to restart the (lib) script after it's been hidden - i.e. make it visible again
+script_data.restart = nil        -- how to restart the (lib) script after it's been hidden - i.e. make it visible again
 
 local temp
 local GUI = { --GUI Elements Table
@@ -151,85 +143,114 @@ local mod = 'module_ZereneStacker'
 -- options for different OS
 local os_path_seperator = '/'
 local os_quote = "'"
-if dt.configuration.running_os == 'windows' then 
+if dt.configuration.running_os == 'windows' then
   os_path_seperator = '\\'
   os_quote = '"'
 end
 
+local macm1 = true
+
 -- find locale directory:
-local scriptfile = debug.getinfo( 1, "S" )
-local localedir = dt.configuration.config_dir..'/lua/locale/'
+local scriptfile = debug.getinfo(1, "S")
+local localedir = dt.configuration.config_dir .. '/lua/locale/'
 if scriptfile ~= nil and scriptfile.source ~= nil then
-  local path = scriptfile.source:match( "[^@].*[/\\]" )
-  localedir = path..os_path_seperator..'locale'
+  local path = scriptfile.source:match("[^@].*[/\\]")
+  localedir = path .. os_path_seperator .. 'locale'
 end
 
 
 -- Tell gettext where to find the .mo file translating messages for a particular domain
 local gettext = dt.gettext
-gettext.bindtextdomain( 'ZereneStacker', localedir )
+gettext.bindtextdomain('ZereneStacker', localedir)
 
 
 -- declare a local namespace and a couple of variables we'll need to install the module
 local mE = {}
-mE.event_registered = false  -- keep track of whether we've added an event callback or not
-mE.module_installed = false  -- keep track of whether the module is module_installed
+mE.event_registered = false -- keep track of whether we've added an event callback or not
+mE.module_installed = false -- keep track of whether the module is module_installed
 
 -- *************************************************
 -- utility functions
 -- *************************************************
 
 local function _(msgid)
-  return gettext.dgettext( 'ZereneStacker', msgid )
+  return gettext.dgettext('ZereneStacker', msgid)
 end
 
 -- *************************
-local function export_image( image, exportfilename)
--- export the given single image to tiff (16 bit)
+local function list_dir(path)
+  local files = {}
 
-  local curr_image = image.path..os_path_seperator..image.filename
+  local cmd
+  if dt.configuration.running_os == 'windows' then
+    cmd = 'dir "' .. path .. '" /b'
+  else
+    cmd = 'ls -1a "' .. path .. '"'
+  end
 
-  dt.print_log( "exporting " .. curr_image .. ' to ' .. exportfilename)
+  local handle = io.popen(cmd)
+  if not handle then
+    return nil, "failed to run command"
+  end
+
+  for line in handle:lines() do
+    if line ~= "." and line ~= ".." then
+      table.insert(files, line)
+    end
+  end
+  handle:close()
+
+  return files
+end
+
+
+-- *************************
+local function export_image(image, exportfilename)
+  -- export the given single image to tiff (16 bit)
+
+  local curr_image = image.path .. os_path_seperator .. image.filename
+
+  dt.print_log("exporting " .. curr_image .. ' to ' .. exportfilename)
 
   local exporter = dt.new_format("tiff")
   exporter.bpp = 16
   exporter:write_image(image, exportfilename)
 
-  dt.print_log( "exported file: "..exportfilename )
+  dt.print_log("exported file: " .. exportfilename)
 end
 
 -- *************************
-local function copy_tags( all_tags, image )
--- add tags on image to all_tags table
-  local image_tags = dt.tags.get_tags( image )
-    for _,tag in pairs( image_tags ) do
-      if string.match( tag.name, 'darktable|' ) == nil then
-        dt.print_log( "image: "..image.filename .. "  tag: "..tag.name )
-        all_tags[ #all_tags + 1 ] = tag
-      end
+local function copy_tags(all_tags, image)
+  -- add tags on image to all_tags table
+  local image_tags = dt.tags.get_tags(image)
+  for _, tag in pairs(image_tags) do
+    if string.match(tag.name, 'darktable|') == nil then
+      dt.print_log("image: " .. image.filename .. "  tag: " .. tag.name)
+      all_tags[#all_tags + 1] = tag
     end
+  end
 
-    dt.print_log( "#all_tags: ".. #all_tags )
+  dt.print_log("#all_tags: " .. #all_tags)
 end
 
 -- *************************
-local function insert_tags( image, tags )
-  for _,tag in pairs( tags ) do
-    dt.tags.attach(tag, image )
-    dt.print_log( 'image: '..image.filename..'  adding tag ', tag.name )
+local function insert_tags(image, tags)
+  for _, tag in pairs(tags) do
+    dt.tags.attach(tag, image)
+    dt.print_log('image: ' .. image.filename .. '  adding tag ', tag.name)
   end
 end
 
 -- *************************
 --removes spaces from the front and back of passed in text
 local function clean_spaces(text)
-  text = string.gsub(text,'^%s*','')
-  text = string.gsub(text,'%s*$','')
+  text = string.gsub(text, '^%s*', '')
+  text = string.gsub(text, '%s*$', '')
   return text
 end
 
 -- *************************
-local function add_additional_tags( image )
+local function add_additional_tags(image)
   local set_tag = GUI.optionwidgets.add_tags.text
   if set_tag ~= nil then -- add additional user-specified tags
     for tag in string.gmatch(set_tag, '[^,]+') do
@@ -242,87 +263,191 @@ end
 
 -- *************************
 local function save_preferences()
-  dt.preferences.write( mod, 'group', 'bool', GUI.optionwidgets.group.value )
-  dt.preferences.write( mod, 'copy_metadata', 'bool', GUI.optionwidgets.copy_metadata.value )
-  dt.preferences.write( mod, 'copy_tags', 'bool', GUI.optionwidgets.copy_tags.value )
-  dt.preferences.write( mod, 'add_tags', 'string', GUI.optionwidgets.add_tags.text )
+  dt.preferences.write(mod, 'group', 'bool', GUI.optionwidgets.group.value)
+  dt.preferences.write(mod, 'copy_metadata', 'bool', GUI.optionwidgets.copy_metadata.value)
+  dt.preferences.write(mod, 'copy_tags', 'bool', GUI.optionwidgets.copy_tags.value)
+  dt.preferences.write(mod, 'add_tags', 'string', GUI.optionwidgets.add_tags.text)
 end
 
 -- *************************
 local function load_preferences()
-  GUI.optionwidgets.group.value = dt.preferences.read( mod, 'group', 'bool' )
-  GUI.optionwidgets.copy_metadata.value = dt.preferences.read( mod, 'copy_metadata', 'bool' )
-  GUI.optionwidgets.copy_tags.value = dt.preferences.read( mod, 'copy_tags', 'bool' )
-  GUI.optionwidgets.add_tags.text = dt.preferences.read( mod, 'add_tags', 'string')
+  GUI.optionwidgets.group.value = dt.preferences.read(mod, 'group', 'bool')
+  GUI.optionwidgets.copy_metadata.value = dt.preferences.read(mod, 'copy_metadata', 'bool')
+  GUI.optionwidgets.copy_tags.value = dt.preferences.read(mod, 'copy_tags', 'bool')
+  GUI.optionwidgets.add_tags.text = dt.preferences.read(mod, 'add_tags', 'string')
 end
 
 -- *************************
 -- stop running job
-local function stop_job( job )
+local function stop_job(job)
   if job.valid then
     job.valid = false
   end
 end
 
-
 -- **************************
-local function build_zerene_commandline(zerene_staging_fldr)
+local function build_zerene_commandline_legacy(zerene_staging_fldr)
   local zerene_commandline = ''
 
-  local zerene_java_folder = df.sanitize_filename( dt.preferences.read( mod, "ZereneJavaFolder", "string" ) )
+  local zerene_java_folder = df.sanitize_filename(dt.preferences.read(mod, "ZereneJavaFolder", "string"))
   -- remove single quotes from folder name
-  zerene_java_folder = string.gsub(zerene_java_folder,"'","")
+  zerene_java_folder = string.gsub(zerene_java_folder, "'", "")
 
-  local zerene_licfldr = df.sanitize_filename(dt.preferences.read( mod, "ZereneLicFolder", "string" ) )
+  local zerene_licfldr = df.sanitize_filename(dt.preferences.read(mod, "ZereneLicFolder", "string"))
   -- remove single quotes from folder name
-  local zerene_licfolder =  string.gsub(zerene_licfldr,"'","")
+  local zerene_licfolder = string.gsub(zerene_licfldr, "'", "")
 
-  -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi 
+  -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi
 
   if dt.configuration.running_os == 'macos' then
-    -- zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
-    zerene_commandline = '"' .. zerene_java_folder  .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
-    
-      .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
-      .. ' -Xdock:name="ZereneStacker" -Xdock:icon="' .. zerene_java_folder .. '/../ZereneEurydice.icns"' .. ' -Dapple.laf.useScreenMenuBar=true' -- Settings to integrate in to apple dock etc                            
-      .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
-      .. zerene_java_folder .. os_path_seperator .. 'jai_codec.jar:'
-      .. zerene_java_folder .. os_path_seperator .. 'jdom.jar:'
-      .. zerene_java_folder .. os_path_seperator .. 'jai_core.jar:'
-      .. zerene_java_folder .. os_path_seperator .. 'metadata-extractor-2.4.0-beta-1.jar:'
-      .. zerene_java_folder .. os_path_seperator .. 'jai_imageio.jar:'
-      .. zerene_java_folder .. os_path_seperator .. 'jdk10hooks.jar"'
-
+    zerene_commandline = '"' ..
+        zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"'                         -- java runtime packaged with zerene
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' .. zerene_licfolder .. '"'                                                                                                         -- directory that holds the Zerene Stacker license key
+        ..
+        ' -Xdock:name="ZereneStacker" -Xdock:icon="' ..
+        zerene_java_folder ..
+        '/../ZereneEurydice.icns"' .. ' -Dapple.laf.useScreenMenuBar=true'                       -- Settings to integrate in to apple dock etc
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'ZereneStacker.jar:'                                                -- tell the JRE where to find the Zerene Stacker application and libraries
+        .. zerene_java_folder .. os_path_seperator .. 'jai_codec.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jdom.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jai_core.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'metadata-extractor-2.4.0-beta-1.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jai_imageio.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jdk10hooks.jar"'
   end
 
   if dt.configuration.running_os == 'windows' then
-    zerene_java_folder = zerene_java_folder:gsub('"','') -- remove enclosing quotes
-    zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'javaw.exe"' -- java runtime packaged with zerene
-      .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
-      .. ' -DjavaBits=64bitJava'
-      .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar;' -- tell the JRE where to find the Zerene Stacker application and libraries
-      .. zerene_java_folder .. os_path_seperator .. 'JREextensions' .. os_path_seperator .. '*"'
-
+    zerene_java_folder = zerene_java_folder:gsub('"', '')                                                                   -- remove enclosing quotes
+    zerene_commandline = '"' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'javaw.exe"'                       -- java runtime packaged with zerene
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' .. zerene_licfolder .. '"'                                                                                      -- directory that holds the Zerene Stacker license key
+        .. ' -DjavaBits=64bitJava'
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'ZereneStacker.jar;'                                                                           -- tell the JRE where to find the Zerene Stacker application and libraries
+        .. zerene_java_folder .. os_path_seperator .. 'JREextensions' .. os_path_seperator .. '*"'
   end
 
   if dt.configuration.running_os == 'linux' then
     zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
-      .. ' -DjavaBits=64bitJava'
-      .. ' -Dlaunchcmddir=' .. '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key 
-      .. ' -classpath "' .. zerene_java_folder.. os_path_seperator .. 'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
-      .. zerene_java_folder .. os_path_seperator .. '/JREextensions/*"'
-
+        .. ' -DjavaBits=64bitJava'
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' .. zerene_licfolder .. '"'                                                                                                         -- directory that holds the Zerene Stacker license key
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'ZereneStacker.jar:'                                                                                              -- tell the JRE where to find the Zerene Stacker application and libraries
+        .. zerene_java_folder .. os_path_seperator .. '/JREextensions/*"'
   end
 
-  -- options to modify how zerene runs                                         
+  -- options to modify how zerene runs
   zerene_commandline = zerene_commandline .. ' com.zerenesystems.stacker.gui.MainFrame'
-  .. ' -noSplashScreen' -- disable splash screen
-  .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
+      .. ' -noSplashScreen'            -- disable splash screen
+      .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
   -- Add staging folder
-  zerene_commandline = zerene_commandline .. ' ' ..  os_quote ..  zerene_staging_fldr .. os_quote
+  zerene_commandline = zerene_commandline .. ' ' .. os_quote .. zerene_staging_fldr .. os_quote
 
   return zerene_commandline
+end
 
+-- **************************
+local function build_zerene_commandline_current(zerene_staging_fldr)
+  local zerene_commandline = ''
+
+  local zerene_java_folder = df.sanitize_filename(dt.preferences.read(mod, "ZereneJavaFolder", "string"))
+  -- remove single quotes from folder name
+  zerene_java_folder = string.gsub(zerene_java_folder, "'", "")
+
+  local zerene_licfldr = df.sanitize_filename(dt.preferences.read(mod, "ZereneLicFolder", "string"))
+  -- remove single quotes from folder name
+  local zerene_licfolder = string.gsub(zerene_licfldr, "'", "")
+
+  -- Build full commandline based on info here https://zerenesystems.com/cms/stacker/docs/batchapi
+
+  if dt.configuration.running_os == 'macos' then
+    local java_folder = 'jre_arm64'
+
+
+    if not macm1 then
+      java_folder = "jre_x64"
+    end
+    zerene_commandline = '"' ..
+        zerene_java_folder ..
+        os_path_seperator .. java_folder .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key
+        ..
+        ' -Xdock:name="ZereneStacker" -Xdock:icon="' ..
+        zerene_java_folder ..
+        '/../ZereneEurydice.icns"' .. ' -Dapple.laf.useScreenMenuBar=true' -- Settings to integrate in to apple dock etc
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
+        --.. zerene_java_folder .. os_path_seperator .. 'jai_codec.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'xmpcore-6.1.11.jar:'
+        --.. zerene_java_folder .. os_path_seperator .. 'jdom.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jdom-2.0.6.1.jar:'
+        --.. zerene_java_folder .. os_path_seperator .. 'jai_core.jar:'
+        --.. zerene_java_folder .. os_path_seperator .. 'metadata-extractor-2.4.0-beta-1.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'metadata-extractor-2.19.0.jar:'
+        --.. zerene_java_folder .. os_path_seperator .. 'jai_imageio.jar:'
+        .. zerene_java_folder .. os_path_seperator .. 'jdk10hooks.jar"'
+  end
+
+  if dt.configuration.running_os == 'windows' then
+    zerene_java_folder = zerene_java_folder:gsub('"', '') -- remove enclosing quotes
+    zerene_commandline = '"' ..
+        zerene_java_folder ..
+        os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'javaw.exe"' -- java runtime packaged with zerene
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' .. zerene_licfolder .. '"' -- directory that holds the Zerene Stacker license key
+        .. ' -DjavaBits=64bitJava'
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator ..
+        'ZereneStacker.jar;' -- tell the JRE where to find the Zerene Stacker application and libraries
+        .. zerene_java_folder .. os_path_seperator .. 'JREextensions' .. os_path_seperator .. '*"'
+  end
+
+  if dt.configuration.running_os == 'linux' then
+    zerene_commandline = '"' .. zerene_java_folder .. os_path_seperator .. 'jre' .. os_path_seperator .. 'bin' .. os_path_seperator .. 'java"' -- java runtime packaged with zerene
+        .. ' -DjavaBits=64bitJava'
+        ..
+        ' -Dlaunchcmddir=' ..
+        '"' ..
+        zerene_licfolder ..
+        '"' -- directory that holds the Zerene Stacker license key
+        ..
+        ' -classpath "' ..
+        zerene_java_folder ..
+        os_path_seperator ..
+        'ZereneStacker.jar:' -- tell the JRE where to find the Zerene Stacker application and libraries
+        .. zerene_java_folder .. os_path_seperator .. '/JREextensions/*"'
+  end
+
+  -- options to modify how zerene runs
+  zerene_commandline = zerene_commandline .. ' com.zerenesystems.stacker.gui.MainFrame'
+      .. ' -noSplashScreen'            -- disable splash screen
+      .. ' -leaveLastBatchProjectOpen' -- leave project open for re-touching etc
+  -- Add staging folder
+  zerene_commandline = zerene_commandline .. ' ' .. os_quote .. zerene_staging_fldr .. os_quote
+
+  return zerene_commandline
 end
 
 
@@ -331,21 +456,18 @@ end
 -- *************************************************
 
 local function start_stacking()
-
-
-  
-  dt.print_log( "starting stacking..." )
+  dt.print_log("starting stacking...")
 
   save_preferences()
 
   local images = dt.gui.selection() --get selected images
 
   -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  local jobdesc = _"exporting " .. #images .. " images to Zerene Stacker..."
-  dt.print_log ('jobdesc is ' .. jobdesc)
-  local job = dt.gui.create_job( jobdesc, true, stop_job )
+  local jobdesc = _ "exporting " .. #images .. " images to Zerene Stacker..."
+  dt.print_log('jobdesc is ' .. jobdesc)
+  local job = dt.gui.create_job(jobdesc, true, stop_job)
 
-  
+
   if #images < 2 then --ensure enough images selected
     dt.print(_('not enough images selected, select at least 2 images to stack'))
     stop_job(job)
@@ -354,100 +476,84 @@ local function start_stacking()
 
   local firstimagepath = '' -- this will be path that stacked images get moved to prior to import
   local firstimagebase = '' -- basename of first image for naming of output files
-  local meta_data = { -- storage for metadata to apply to stacked images
+  local meta_data = {       -- storage for metadata to apply to stacked images
     title = '',
     description = '',
     creator = '',
     rights = '',
   }
-  local source_img_table = {} -- table of source images
+  local source_img_table = {}      -- table of source images
   local exported_images_table = {} -- table of exported images
-  local all_tags = {} -- table of all tags from source images
-  local images_to_group = {} -- table of images to be grouped with first images
-  local img_count = #images -- number of source images
+  local all_tags = {}              -- table of all tags from source images
+  local images_to_group = {}       -- table of images to be grouped with first images
+  local img_count = #images        -- number of source images
   local ZereneBatchFound = false
-  local stagingfolder = df.sanitize_filename( dt.preferences.read( mod, "StackerStagingFolder", "string" ) )
-   -- remove single & double quotes from folder name
-  stagingfolder = string.gsub(stagingfolder,"'","")
-  stagingfolder = string.gsub(stagingfolder,'"','')
-  -- check staging folder is empty other than ZereneBatch.xml - depends on lfsfilesystem which may not be available
-  
-  if lfs_loaded then
-    
-    local staging_clear = true
-    for this_file in lfs.dir(stagingfolder) do
-      if this_file ~= "." and this_file ~= ".." then
-        dt.print_log(' Found '.. this_file)
-        if this_file == 'ZereneBatch.xml' then
-          ZereneBatchFound = true
-        else 
-          if string.sub(this_file,1,1) ~= '.' then -- hidden files are ok as Zerene ignores them
-            staging_clear=false
-            break
-          end
-        end
+  local stagingfolder = df.sanitize_filename(dt.preferences.read(mod, "StackerStagingFolder", "string"))
+  -- remove single & double quotes from folder name
+  stagingfolder = string.gsub(stagingfolder, "'", "")
+  stagingfolder = string.gsub(stagingfolder, '"', '')
+
+  -- check staging folder is empty other than ZereneBatch.xml
+  local staging_clear = true
+  local stagingfolder_contents = list_dir(stagingfolder) or {}
+  for _, this_file in ipairs(stagingfolder_contents) do
+    dt.print_log(' Found ' .. this_file)
+    if this_file == 'ZereneBatch.xml' then
+      ZereneBatchFound = true
+    else
+      if string.sub(this_file, 1, 1) ~= '.' then -- hidden files are ok as Zerene ignores them
+        staging_clear = false
+        break
       end
     end
-    if not (staging_clear) then
-      dt.print_log(stagingfolder .. " not empty")
-      dt.print(_("Please ensure the folder " .. stagingfolder .. " contains only ZereneBatch.xml"))
-      stop_job(job)
-      return
-    end
-    if not(ZereneBatchFound) then
-      dt.print_log("ZereneBatch.xml not found")
-      dt.print(_("ZereneBatch.xml not found in " .. stagingfolder ))
-      stop_job(job)
-      return
-    end
+  end
+  if not (staging_clear) then
+    dt.print_log(stagingfolder .. " not empty")
+    dt.print(_("Please ensure the folder " .. stagingfolder .. " contains only ZereneBatch.xml"))
+    stop_job(job)
+    return
+  end
+  if not (ZereneBatchFound) then
+    dt.print_log("ZereneBatch.xml not found")
+    dt.print(_("ZereneBatch.xml not found in " .. stagingfolder))
+    stop_job(job)
+    return
   end
 
-  -- create tif export of source imaage in staging folder
-  for i,image in pairs(images) do
 
-    local export_file_name = stagingfolder..os_path_seperator..image.filename..".tif"
-    export_image( image, export_file_name)
+  -- create tif export of source imaage in staging folder
+  for i, image in pairs(images) do
+    local export_file_name = stagingfolder .. os_path_seperator .. image.filename .. ".tif"
+    export_image(image, export_file_name)
 
     -- store tags for all exported images
-    copy_tags( all_tags, image )
+    copy_tags(all_tags, image)
 
     -- store exported image name
-    table.insert(exported_images_table,export_file_name)
+    table.insert(exported_images_table, export_file_name)
 
     -- store source image for later grouping, tagging etc
-    source_img_table[ #source_img_table+1] = image
+    source_img_table[#source_img_table + 1] = image
     if i == 1 then
       -- get path of first source image - stacked files will be moved to this folder prior to import to DT
-      dt.print_log( 'image.path= '..image.path )
-      dt.print_log( 'sanitized = '..df.sanitize_filename( image.path ) )
-      firstimagepath = df.sanitize_filename( image.path )
-      firstimagepath = string.gsub(firstimagepath,"'","")
-      firstimagepath = string.gsub(firstimagepath,'"','')
-      firstimagebase= df.get_basename(image.filename)
+      dt.print_log('image.path= ' .. image.path)
+      dt.print_log('sanitized = ' .. df.sanitize_filename(image.path))
+      firstimagepath = df.sanitize_filename(image.path)
+      firstimagepath = string.gsub(firstimagepath, "'", "")
+      firstimagepath = string.gsub(firstimagepath, '"', '')
+      firstimagebase = df.get_basename(image.filename)
       meta_data.title = image.title
       meta_data.description = image.description
       meta_data.creator = image.creator
       meta_data.rights = image.rights
     else
       -- remember image to group later:
-      images_to_group[ #images_to_group + 1 ] = image
+      images_to_group[#images_to_group + 1] = image
     end
     if dt.control.ending or not job.valid then
-      dt.print_log( _"exporting images canceled!")
+      dt.print_log(_ "exporting images canceled!")
       return
     end
---[[
-
-  -- create a new progress_bar displayed in darktable.gui.libs.backgroundjobs
-  local jobdesc = _"exporting " .. #images .. " images to Zerene Stacker..."
-  dt.print_log ('jobdesc is ' .. jobdesc)
-  local job = dt.gui.create_job( jobdesc, true, stop_job )
-    if(job.valid) then
-      job.valid = false
-    end
-    job = dt.gui.create_job( _"Exporting " .. ii .. " of " .. params.img_count .. " images ", true, stop_job   )
-
-]]
     -- update progress_bar
     job.percent = i / #images
 
@@ -459,73 +565,79 @@ local function start_stacking()
   stop_job(job)
 
   -- get os dependent command line to run Zerene Stacker
-  local zerene_commandline = build_zerene_commandline(stagingfolder)
+  local zerene_commandline = build_zerene_commandline_current(stagingfolder)
+  local UseLegacyCommandLine = dt.preferences.read(mod, "UseLegacyCommandLine", "bool")
+  if UseLegacyCommandLine then
+    zerene_commandline = build_zerene_commandline_legacy(stagingfolder)
+  end
 
- -- run Zerene Stacker
-  job = dt.gui.create_job( _"Running Zerene Stacker...", true, stop_job )
-  dt.print_log( 'commandline: '..zerene_commandline )
-  local zerene_start_time = os.date("*t",os.time())
-  dt.print_log("Zerene Started " .. zerene_start_time.hour ..":" .. zerene_start_time.min .. ":" .. zerene_start_time.sec)
+
+  -- run Zerene Stacker
+  job = dt.gui.create_job(_ "Running Zerene Stacker...", true, stop_job)
+  dt.print_log('commandline: ' .. zerene_commandline)
+  local zerene_start_time = os.date("*t", os.time())
+  dt.print_log("Zerene Started " .. zerene_start_time.hour .. ":" .. zerene_start_time.min .. ":" .. zerene_start_time.sec)
   local resp
-  if dt.configuration.running_os == 'windows' then 
-    resp = dsys.windows_command( zerene_commandline)
+  if dt.configuration.running_os == 'windows' then
+    resp = dsys.windows_command(zerene_commandline)
   else
-    resp = dsys.external_command( zerene_commandline )
+    resp = dsys.external_command(zerene_commandline)
   end
 
-  dt.print_log( 'zerene returned '..tostring( resp ) )
+  dt.print_log('zerene returned ' .. tostring(resp))
   if resp ~= 0 then
-    dt.print( _'could not start ZereneStacker application' )
+    dt.print(_ 'could not start ZereneStacker application')
   end
-  local zerene_end_time = os.date("*t",os.time())
-  dt.print_log("Zerene Finished " .. zerene_end_time.hour ..":" .. zerene_end_time.min .. ":" .. zerene_end_time.sec)
+  local zerene_end_time = os.date("*t", os.time())
+  dt.print_log("Zerene Finished " .. zerene_end_time.hour .. ":" .. zerene_end_time.min .. ":" .. zerene_end_time.sec)
 
   stop_job(job)
 
-  -- delete exported tif files 
-  for i,exp_file_name in pairs(exported_images_table) do
+  -- delete exported tif files
+  for i, exp_file_name in pairs(exported_images_table) do
     if (os.remove(exp_file_name)) then
       dt.print_log("Removed " .. exp_file_name)
     else
-      dt.print_log("Failed to renove " .. exp_file_name)
+      dt.print_log("Failed to remove " .. exp_file_name)
     end
   end
 
   local stackedimages = {} -- table of images to be moved/imported
-  if lfs_loaded then
-    -- use lfs to find all tif images in staging folder - even if default output filenames are changed in ZereneStacker
-    for this_file in lfs.dir(stagingfolder) do
-      if this_file ~= "." and this_file ~= ".." then
-        dt.print_log('Found '.. this_file)
-        if string.sub(this_file,1,1) ~= '.' then -- ignore hidden files
-          local file_type = df.get_filetype(this_file)
-          if file_type == 'tif' then
-            table.insert(stackedimages,this_file)
-          end
+  local allfiles = list_dir(stagingfolder) or {}
+  for _, this_file in pairs(allfiles) do
+    if this_file ~= "." and this_file ~= ".." then
+      dt.print_log('Found ' .. this_file)
+      if string.sub(this_file, 1, 1) ~= '.' then -- ignore hidden files
+        local file_type = df.get_filetype(this_file)
+        if file_type == 'tif' then
+          table.insert(stackedimages, this_file)
         end
       end
     end
+  end
+  --[[
   else
     -- no lfs - look for specific filenames - will fail to find immages not using default output filename "ZS-OutputImage ZS {method}.tif"
     local zs_base = "ZS-OutputImage"
-    local zs_extensions={".tif", " ZS PMax.tif"," ZS DMap.tif"," ZS retouched.tif"}
+    local zs_extensions = { ".tif", " ZS PMax.tif", " ZS DMap.tif", " ZS retouched.tif" }
     -- now look for the full names including extensions
     for jj = 1, 4 do
       local this_zs_image = zs_base .. zs_extensions[jj]
       -- does this file exist?
       dt.print_log("Checking for " .. this_zs_image)
       if df.check_if_file_exists(stagingfolder .. os_path_seperator .. this_zs_image) then
-        table.insert(stackedimages,this_zs_image)
+        table.insert(stackedimages, this_zs_image)
       end
     end
   end
+  ]]
   -- process all images in stackedimages table
-  for _,this_file in pairs(stackedimages) do
+  for _, this_file in pairs(stackedimages) do
     -- rename stacked image to reflect source images
     local full_filename = stagingfolder .. os_path_seperator .. this_file
-    local new_filename = stagingfolder ..os_path_seperator .. firstimagebase .. '-' .. img_count .. '-ZS.' .. df.get_filetype(this_file)
-    dt.print_log('Renaming ' ..  full_filename .. ' to ' .. new_filename)
-    if not df.file_move(full_filename,new_filename) then
+    local new_filename = stagingfolder .. os_path_seperator .. firstimagebase .. '-' .. img_count .. '-ZS.' .. df.get_filetype(this_file)
+    dt.print_log('Renaming ' .. full_filename .. ' to ' .. new_filename)
+    if not df.file_move(full_filename, new_filename) then
       dt.print_log("Unable to rename " .. full_filename .. " to " .. new_filename .. " please check manually")
       break
     end
@@ -534,12 +646,12 @@ local function start_stacking()
 
     -- now move renamed file from staging folder and import to DT
     -- use df.create_unique_file in case stacked filename already exists in source folder
-    local target_filename = df.create_unique_filename( firstimagepath .. os_path_seperator .. this_file)
+    local target_filename = df.create_unique_filename(firstimagepath .. os_path_seperator .. this_file)
 
     dt.print_log('Source is ' .. this_file .. ' target is ' .. target_filename)
     if target_filename ~= "" then
       -- move stacked image to source folder and import
-      if df.file_move(full_filename,target_filename) then
+      if df.file_move(full_filename, target_filename) then
         -- stacked tif now in correct folder and ready for import
         local imported_image = dt.database.import(target_filename)
         if imported_image == nil then
@@ -547,12 +659,12 @@ local function start_stacking()
           dt.print(_("Unable to move " .. this_file .. " to " .. firstimagepath .. " please check manually"))
           break
         end
-       
+
         -- group
         -- first group all source images
         if GUI.optionwidgets.group.value == true then
-          for _,imagetogroup in pairs( images_to_group ) do
-            imagetogroup:group_with( source_img_table[ 1 ] )
+          for _, imagetogroup in pairs(images_to_group) do
+            imagetogroup:group_with(source_img_table[1])
           end
           -- now add stacked image to group and make it leader
           imported_image:group_with(source_img_table[1])
@@ -560,7 +672,7 @@ local function start_stacking()
         end
         -- tags
         if GUI.optionwidgets.copy_tags.value == true then
-          insert_tags(imported_image,all_tags)
+          insert_tags(imported_image, all_tags)
         end
         add_additional_tags(imported_image)
         -- metadata
@@ -575,7 +687,7 @@ local function start_stacking()
         dt.print_log("Unable to move " .. this_file .. " to " .. firstimagepath .. " please check manually")
         dt.print(_("Unable to import  " .. target_filename))
       end
-    end     
+    end
   end
 end
 
@@ -589,7 +701,7 @@ GUI.optionwidgets.group = dt.new_widget('check_button') {
   value = false,
   tooltip = _('group selected source images and imported result image(s) together'),
   clicked_callback = function(self)
-    dt.print_log( "group: "..tostring( self.value ) )
+    dt.print_log("group: " .. tostring(self.value))
   end,
   reset_callback = function(self)
     self.value = false
@@ -601,7 +713,7 @@ GUI.optionwidgets.copy_metadata = dt.new_widget('check_button') {
   value = false,
   tooltip = _('copy metadata first source image to the imported result image(s)'),
   clicked_callback = function(self)
-    dt.print_log( "copy metadata: "..tostring( self.value ) )
+    dt.print_log("copy metadata: " .. tostring(self.value))
   end,
   reset_callback = function(self) self.value = false end
 }
@@ -611,16 +723,16 @@ GUI.optionwidgets.copy_tags = dt.new_widget('check_button') {
   value = false,
   tooltip = _('copy tags from first source image to the imported result image(s)'),
   clicked_callback = function(self)
-    dt.print_log( "copy tags: "..tostring( self.value ) )
+    dt.print_log("copy tags: " .. tostring(self.value))
   end,
   reset_callback = function(self) self.value = false end
 }
 
-GUI.optionwidgets.label_settings = dt.new_widget('section_label'){
+GUI.optionwidgets.label_settings = dt.new_widget('section_label') {
   label = _('settings')
 }
 
-GUI.optionwidgets.label_import_options = dt.new_widget('section_label'){
+GUI.optionwidgets.label_import_options = dt.new_widget('section_label') {
   label = _('import options')
 }
 
@@ -630,7 +742,7 @@ GUI.optionwidgets.add_tags_label = dt.new_widget('label') {
   halign = 'start'
 }
 
-GUI.optionwidgets.add_tags = dt.new_widget('entry'){
+GUI.optionwidgets.add_tags = dt.new_widget('entry') {
   tooltip = _('Additional tags to be added on import. Seperate with commas, all spaces will be removed'),
   placeholder = _('Enter tags, seperated by commas'),
   editable = true
@@ -651,40 +763,49 @@ GUI.options = dt.new_widget('box') {
   GUI.optionwidgets.add_tags_box
 }
 
-GUI.run = dt.new_widget('button'){
+GUI.run = dt.new_widget('button') {
   label = _('stack with Zerene Stacker'),
-  tooltip =_('run zerene Focus to stack selected images'),
+  tooltip = _('run zerene Focus to stack selected images'),
   clicked_callback = function() start_stacking() end
 }
 
 
 -- Preferences - locate Zerene App and staging folder used for image export and script
 dt.preferences.register(
-  mod, -- script
-  "StackerStagingFolder",	-- name
-	"directory",	-- type
-  _('Stacker Staging Folder'),	-- label
-	_('Select the staging folder to be used for stacking'),	-- tooltip
-  "" -- default,
+  mod,                                                    -- script
+  "StackerStagingFolder",                                 -- name
+  "directory",                                            -- type
+  _('Stacker Staging Folder'),                            -- label
+  _('Select the staging folder to be used for stacking'), -- tooltip
+  ""                                                      -- default,
 )
 
 
 dt.preferences.register(
-  mod, -- script
-  "ZereneJavaFolder",	-- name
-	"directory",	-- type
-  _('Zerene Stacker Java Folder'),	-- label
-	_('Select the Zerene Stacker Java folder'),	-- tooltip
-  "" -- default,
+  mod,                                        -- script
+  "ZereneJavaFolder",                         -- name
+  "directory",                                -- type
+  _('Zerene Stacker Java Folder'),            -- label
+  _('Select the Zerene Stacker Java folder'), -- tooltip
+  ""                                          -- default,
 )
 
 dt.preferences.register(
-  mod, -- script
-  "ZereneLicFolder",	-- name
-	"directory",	-- type
-  _('Zerene Licence Folder'),	-- label
-	_('Select the folder holding the Zerene licence key'),	-- tooltip
-  "" -- default,
+  mod,                                                 -- script
+  "UseLegacyCommandLine",                              -- name
+  "bool",                                              -- type
+  _('Use Legacy Command Line'),                        -- label
+  _('Use the legacy command line for Zerene Stacker for compatibility with older versions'), -- tooltip
+  false                                                -- default,
+)
+
+dt.preferences.register(
+  mod,                                                   -- script
+  "ZereneLicFolder",                                     -- name
+  "directory",                                           -- type
+  _('Zerene Licence Folder'),                            -- label
+  _('Select the folder holding the Zerene licence key'), -- tooltip
+  ""                                                     -- default,
 )
 
 
@@ -694,21 +815,21 @@ load_preferences()
 
 local function install_module()
   if not mE.module_installed then
-    dt.register_lib( -- register  module
-      'ZereneStacker_Lib', -- Module name
-      _('Zerene Stacker'), -- name
-      true,   -- expandable
-      true,   -- resetable
-      {[dt.gui.views.lighttable] = {'DT_UI_CONTAINER_PANEL_RIGHT_CENTER', 99}},   -- containers
-      dt.new_widget('box'){
+    dt.register_lib(                                                                -- register  module
+      'ZereneStacker_Lib',                                                          -- Module name
+      _('Zerene Stacker'),                                                          -- name
+      true,                                                                         -- expandable
+      true,                                                                         -- resetable
+      { [dt.gui.views.lighttable] = { 'DT_UI_CONTAINER_PANEL_RIGHT_CENTER', 99 } }, -- containers
+      dt.new_widget('box') {
         orientation = 'vertical',
         GUI.options,
         GUI.run
 
       },
 
-      nil,-- view_enter
-      nil -- view_leave
+      nil, -- view_enter
+      nil  -- view_leave
     )
   end
 end
@@ -720,23 +841,22 @@ end
 
 local function restart()
   dt.gui.libs["ZereneStacker_Lib"].visible = true
-
 end
 
 if dt.gui.current_view().id == "lighttable" then -- make sure we are in lighttable view
-  install_module()  -- register the lib
+  install_module()                               -- register the lib
 else
-  if not mE.event_registered then -- if we are not in lighttable view then register an event to signal when we might be
+  if not mE.event_registered then                -- if we are not in lighttable view then register an event to signal when we might be
     -- https://www.darktable.org/lua-api/index.html#darktable_register_event
     dt.register_event(
-      "mdouleExample", "view-changed",  -- we want to be informed when the view changes
+      "mdouleExample", "view-changed",                                        -- we want to be informed when the view changes
       function(event, old_view, new_view)
-        if new_view.name == "lighttable" and old_view.name == "darkroom" then  -- if the view changes from darkroom to lighttable
-          install_module()  -- register the lib
+        if new_view.name == "lighttable" and old_view.name == "darkroom" then -- if the view changes from darkroom to lighttable
+          install_module()                                                    -- register the lib
         end
       end
     )
-    mE.event_registered = true  --  keep track of whether we have an event handler installed
+    mE.event_registered = true --  keep track of whether we have an event handler installed
   end
 end
 
